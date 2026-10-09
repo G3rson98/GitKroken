@@ -1,6 +1,17 @@
 // Centre-area diff viewer for `selectedFile`: Hunk / Inline / Split views
 // over a virtualised list, with per-hunk stage / unstage / discard.
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties
+} from 'react'
 import { AlignJustify, Columns2, FileDiff, Rows3, X } from 'lucide-react'
 import type { FileChange, FileStatus } from '@shared/types'
 import { useStore, type SelectedFile } from '../../store'
@@ -11,6 +22,7 @@ import { findDiffFile, parseDiff, type DiffFile, type DiffLine } from './parseDi
 import { buildHunkPatch } from './patch'
 import { buildRows, maxWidths, rowAt, rowOffsets, visibleRange, type DiffRow, type ViewMode } from './rows'
 import { wordDiff, type Segment, type WordDiff } from './wordDiff'
+import { highlightFile, mergeTokens, type TokenMap } from './highlight'
 import './DiffView.css'
 
 const MODES = ['hunk', 'inline', 'split'] as const
@@ -121,6 +133,8 @@ export function DiffView() {
   const text = current?.text ?? ''
   const file = useMemo(() => (sel ? findDiffFile(parseDiff(text), sel.path) : null), [text, sel?.path])
 
+  const tokens = useSyntaxTokens(file, sel?.path)
+
   const conflicted = isWip && !!status?.conflicted.some((f) => f.path === sel?.path)
   const fileRef = useRef(file)
   fileRef.current = file
@@ -186,10 +200,30 @@ export function DiffView() {
       ) : file.hunks.length === 0 ? (
         <Notice text={emptyReason(file)} />
       ) : (
-        <DiffBody key={key} file={file} mode={mode} actions={canApplyHunks ? actions : null} busy={busy} />
+        <SyntaxCtx.Provider value={tokens}>
+          <DiffBody key={key} file={file} mode={mode} actions={canApplyHunks ? actions : null} busy={busy} />
+        </SyntaxCtx.Provider>
       )}
     </div>
   )
+}
+
+// Syntax colours arrive asynchronously; the diff shows as plain text until then
+const SyntaxCtx = createContext<TokenMap | null>(null)
+
+function useSyntaxTokens(file: DiffFile | null, path: string | undefined): TokenMap | null {
+  const [state, setState] = useState<{ file: DiffFile; tokens: TokenMap } | null>(null)
+  useEffect(() => {
+    if (!file || !path) return
+    let alive = true
+    highlightFile(file, path)
+      .then((tokens) => alive && tokens && setState({ file, tokens }))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [file, path])
+  return state && state.file === file ? state.tokens : null
 }
 
 function toSelection(f: FileChange, staged: boolean): SelectedFile {
@@ -547,9 +581,27 @@ function Code({ line, pair }: { line: DiffLine; pair: DiffLine | null }) {
   const cut = text.length > MAX_CHARS ? text.length - MAX_CHARS : 0
   if (cut) text = text.slice(0, MAX_CHARS)
   const segs = !cut && pair ? segmentsFor(line, pair) : null
+  const toks = useContext(SyntaxCtx)?.get(line)
+  const pieces = toks && !cut ? mergeTokens(toks, segs) : null
   return (
     <span className="dv-code">
-      {segs ? segs.map((s, i) => (s.changed ? <mark key={i}>{s.text}</mark> : s.text)) : text}
+      {pieces
+        ? pieces.map((p, i) =>
+            p.changed ? (
+              <mark key={i} style={p.color ? { color: p.color } : undefined}>
+                {p.text}
+              </mark>
+            ) : p.color ? (
+              <span key={i} style={{ color: p.color }}>
+                {p.text}
+              </span>
+            ) : (
+              p.text
+            )
+          )
+        : segs
+          ? segs.map((s, i) => (s.changed ? <mark key={i}>{s.text}</mark> : s.text))
+          : text}
       {cut > 0 && <span className="dv-aside">… +{cut} caracteres</span>}
       {line.noNewline && <span className="dv-aside">⊘ sin salto de línea al final del archivo</span>}
     </span>
