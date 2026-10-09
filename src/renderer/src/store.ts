@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Commit, Ref, Remote, Status } from '@shared/types'
 import { git } from './lib/git'
 import { toast } from './components/ui/overlays'
+import { handleCredentialRequest } from './components/net/credentials'
 
 /** Pseudo-hash of the "work in progress" row at the top of the graph */
 export const WIP = 'WIP'
@@ -24,6 +25,15 @@ export interface SelectedFile {
   untracked?: boolean
 }
 
+/** What the centre area shows instead of the graph (a selected file's diff aside) */
+export type CenterView =
+  | { kind: 'graph' }
+  | { kind: 'conflict'; path: string }
+  /** Interactive rebase of `base..HEAD` */
+  | { kind: 'rebase'; base: string }
+  | { kind: 'blame'; path: string; rev?: string }
+  | { kind: 'fileHistory'; path: string }
+
 interface AppState {
   tabs: RepoTab[]
   recent: RepoTab[]
@@ -41,6 +51,7 @@ interface AppState {
   selected: string | null
   /** When set, the center area shows the diff view instead of the graph */
   selectedFile: SelectedFile | null
+  view: CenterView
 
   openRepo(path: string): Promise<void>
   closeTab(path: string): void
@@ -49,6 +60,8 @@ interface AppState {
   loadMore(): Promise<void>
   select(hash: string | null): void
   selectFile(file: SelectedFile | null): void
+  /** Opens a centre view (closing any diff); `{ kind: 'graph' }` goes back to the graph */
+  openView(view: CenterView): void
   /**
    * Runs a git mutation with busy state + error toast, then refreshes.
    * Resolves true on success. Use for every write operation.
@@ -82,6 +95,7 @@ export const useStore = create<AppState>((set, get) => ({
   busy: null,
   selected: null,
   selectedFile: null,
+  view: { kind: 'graph' },
 
   async openRepo(path) {
     try {
@@ -124,7 +138,8 @@ export const useStore = create<AppState>((set, get) => ({
       status: null,
       hasMore: false,
       selected: null,
-      selectedFile: null
+      selectedFile: null,
+      view: { kind: 'graph' }
     })
     if (path) {
       git.watch(path).catch(() => {})
@@ -180,11 +195,15 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   select(hash) {
-    set({ selected: hash, selectedFile: null })
+    set({ selected: hash, selectedFile: null, view: { kind: 'graph' } })
   },
 
   selectFile(file) {
-    set({ selectedFile: file })
+    set(file ? { selectedFile: file, view: { kind: 'graph' } } : { selectedFile: null })
+  },
+
+  openView(view) {
+    set({ view, selectedFile: null })
   },
 
   async run(label, fn, successMsg) {
@@ -217,10 +236,12 @@ export function initStore(): () => void {
     const s = useStore.getState()
     if (repo === s.activeRepo && !s.busy) s.refresh()
   })
+  const offCred = window.bridge.onCredentialRequest(handleCredentialRequest)
   const onFocus = () => useStore.getState().refresh()
   window.addEventListener('focus', onFocus)
   return () => {
     off()
+    offCred()
     window.removeEventListener('focus', onFocus)
   }
 }

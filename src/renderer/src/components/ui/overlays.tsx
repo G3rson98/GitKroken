@@ -12,6 +12,7 @@ export interface PromptField {
   label: string
   defaultValue?: string
   placeholder?: string
+  type?: 'text' | 'password'
 }
 
 interface DialogState {
@@ -174,6 +175,7 @@ function Dialog() {
             <label>{f.label}</label>
             <input
               autoFocus={i === 0}
+              type={f.type ?? 'text'}
               placeholder={f.placeholder}
               value={values[f.name] ?? ''}
               onChange={(e) => setValues({ ...values, [f.name]: e.target.value })}

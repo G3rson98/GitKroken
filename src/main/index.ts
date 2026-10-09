@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
-import { IPC_INVOKE, IPC_REPO_CHANGED, type GitApi } from '@shared/types'
-import { gitApi, onRepoChanged } from './git'
+import { IPC_CREDENTIAL, IPC_INVOKE, IPC_REPO_CHANGED, type GitApi } from '@shared/types'
+import { gitApi, onCredentialRequest, onRepoChanged } from './git'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -42,6 +42,12 @@ app.whenReady().then(() => {
 
   onRepoChanged((repo) => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC_REPO_CHANGED, repo)
+  })
+
+  onCredentialRequest((req) => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    if (win) win.webContents.send(IPC_CREDENTIAL, req)
+    else void gitApi.answerCredential(req.id, null)
   })
 
   createWindow()

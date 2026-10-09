@@ -8,12 +8,28 @@
 import type { GitApi } from '@shared/types'
 import { coreApi } from './core'
 import { nativeApi } from './native'
+import { netApi } from './net'
+import { conflictsApi } from './conflicts'
+import { rebaseApi } from './rebase'
+import { historyApi } from './history'
+import { extrasApi } from './extras'
+import { hostingApi } from './hosting'
 
 /**
  * A plain object whose methods are own properties: the IPC dispatcher looks
  * methods up with `hasOwnProperty`.
  */
-export const gitApi: GitApi = { ...coreApi, ...nativeApi }
+export const gitApi: GitApi = {
+  ...coreApi,
+  ...nativeApi,
+  ...netApi,
+  ...conflictsApi,
+  ...rebaseApi,
+  ...historyApi,
+  ...extrasApi,
+  ...hostingApi
+}
 
 export { onRepoChanged } from './watcher'
+export { onCredentialRequest } from './net'
 export { GitError } from './exec'

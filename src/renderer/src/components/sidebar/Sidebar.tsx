@@ -20,6 +20,9 @@ import { showContextMenu } from '../ui/overlays'
 import { checkoutRef, createBranchAtHead, shortSha } from '../toolbar/actions'
 import { addRemote, localBranchMenu, remoteBranchMenu, remoteMenu, stashMenu, tagMenu } from './menus'
 import { buildTree, groupRemotes, stashIndex, useCollapsed, type TreeLeaf, type TreeNode } from './tree'
+import { Chevron, Section } from './Section'
+import { ExtraSections } from '../extras/Sections'
+import { HostingSections } from '../hosting/Sections'
 import './sidebar.css'
 
 /** Rows rendered per flat list (stashes, tags) before "show more" */
@@ -29,43 +32,6 @@ const BASE_PAD = 8
 /** Width of a chevron + its gap: leaves are shifted by it so their icons line up with folder icons */
 const CHEVRON_W = 18
 
-const Chevron = ({ open }: { open: boolean }) =>
-  open ? <ChevronDown size={14} className="sb-chev" /> : <ChevronRight size={14} className="sb-chev" />
-
-function Section(props: {
-  icon: ReactNode
-  title: string
-  count: number | string
-  open: boolean
-  onToggle: () => void
-  onAdd?: () => void
-  addTitle?: string
-  children: ReactNode
-}) {
-  return (
-    <section className="sb-section">
-      <div className="sb-head" onClick={props.onToggle}>
-        <Chevron open={props.open} />
-        <span className="sb-head-icon">{props.icon}</span>
-        <span className="sb-head-title">{props.title}</span>
-        <span className="sb-count">{props.count}</span>
-        {props.onAdd && (
-          <button
-            className="sb-add"
-            title={props.addTitle}
-            onClick={(e) => {
-              e.stopPropagation()
-              props.onAdd?.()
-            }}
-          >
-            <Plus size={14} />
-          </button>
-        )}
-      </div>
-      {props.open && props.children}
-    </section>
-  )
-}
 
 function Row(props: {
   depth: number
@@ -384,6 +350,9 @@ export function Sidebar() {
             )}
           />
         </Section>
+
+        <ExtraSections filter={filter} />
+        <HostingSections filter={filter} />
       </div>
     </div>
   )

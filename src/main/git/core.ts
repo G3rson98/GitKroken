@@ -4,6 +4,12 @@ import { existsSync } from 'fs'
 import { mkdir, realpath, stat } from 'fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'path'
 import type { Commit, CommitDetails, DiffRequest, GitApi, Ref, Remote, ResetMode, Status } from '@shared/types'
+import type { netApi } from './net'
+import type { conflictsApi } from './conflicts'
+import type { rebaseApi } from './rebase'
+import type { historyApi } from './history'
+import type { extrasApi } from './extras'
+import type { hostingApi } from './hosting'
 import { assertPaths, assertRef, git, runGit, tryGit } from './exec'
 import {
   LOG_FORMAT,
@@ -19,7 +25,9 @@ import {
 } from './parse'
 import { unwatch, watch } from './watcher'
 
-export type CoreGitApi = Omit<GitApi, 'pickDirectory' | 'reveal' | 'openInTerminal'>
+type ElsewhereApi = typeof netApi & typeof conflictsApi & typeof rebaseApi & typeof historyApi & typeof extrasApi & typeof hostingApi
+/** The methods implemented in this file; the rest live in the sibling modules */
+export type CoreGitApi = Omit<GitApi, 'pickDirectory' | 'reveal' | 'openInTerminal' | keyof ElsewhereApi>
 
 type InProgress = Status['inProgress']
 
