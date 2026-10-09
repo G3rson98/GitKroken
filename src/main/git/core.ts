@@ -431,6 +431,14 @@ async function unstage(repo: string, paths: string[]): Promise<void> {
 }
 
 async function stageAll(repo: string): Promise<void> {
+  // `git add -A` would mark every conflicted file as resolved, markers and all
+  const unmerged = (await git(repo, ['diff', '--name-only', '--diff-filter=U', '-z'])).split('\0').filter(Boolean)
+  if (unmerged.length > 0) {
+    throw new Error(
+      `${unmerged.length} file${unmerged.length === 1 ? ' has' : 's have'} unresolved conflicts (${unmerged.slice(0, 3).join(', ')}${unmerged.length > 3 ? ', …' : ''}). ` +
+        'Resolve them, or mark them as resolved one by one, before staging everything.'
+    )
+  }
   await git(repo, ['add', '-A'])
 }
 

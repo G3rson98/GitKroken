@@ -79,6 +79,21 @@ describe('discard', () => {
   })
 })
 
+describe('stage all with unresolved conflicts', () => {
+  it('is refused: it would mark files that still have conflict markers as resolved', async () => {
+    const repo = conflictedMerge()
+    await expect(api.merge(repo, 'f')).rejects.toThrow()
+    write(repo, 'other.txt', 'new\n')
+    await expect(api.stageAll(repo)).rejects.toThrow(/unresolved conflicts \(a\.txt\)/)
+    expect((await api.status(repo)).conflicted.map((f) => f.path)).toEqual(['a.txt'])
+    // Marking one file as resolved explicitly still works, and then stage all does too
+    write(repo, 'a.txt', 'resolved\n')
+    await api.stage(repo, ['a.txt'])
+    await api.stageAll(repo)
+    expect((await api.status(repo)).conflicted).toEqual([])
+  })
+})
+
 describe('operations that would silently drop a merge in progress', () => {
   it('stash, checkout, new branch and reset are refused; abort still works', async () => {
     const repo = conflictedMerge()
