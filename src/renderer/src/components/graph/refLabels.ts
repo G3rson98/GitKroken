@@ -107,7 +107,7 @@ export function initials(author: string): string {
   return (first + last).toUpperCase()
 }
 
-const fullFmt = new Intl.DateTimeFormat('es', { dateStyle: 'full', timeStyle: 'short' })
+const fullFmt = new Intl.DateTimeFormat('en', { dateStyle: 'full', timeStyle: 'short' })
 
 /** Date for the DATE column: "17/09/2026 @ 7:38" */
 export function formatDate(sec: number): string {

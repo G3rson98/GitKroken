@@ -40,8 +40,8 @@ const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['minute', 60]
 ]
 
-/** "hace 3 días" — `date` and `now` in Unix seconds */
-export function relativeTime(date: number, now: number, locale = 'es'): string {
+/** "3 days ago" — `date` and `now` in Unix seconds */
+export function relativeTime(date: number, now: number, locale = 'en'): string {
   const diff = date - now
   const abs = Math.abs(diff)
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })

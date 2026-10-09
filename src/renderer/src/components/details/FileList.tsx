@@ -102,7 +102,7 @@ export function FileList(props: FileListProps) {
           })}
       {count > limit && (
         <button className="fl-more" onClick={() => setLimit((n) => n + PAGE * 5)}>
-          Mostrar más ({count - limit} restantes)
+          Show more ({count - limit} remaining)
         </button>
       )}
     </div>

@@ -3,10 +3,11 @@ import type { Ref, Remote } from '@shared/types'
 import { git } from '../../lib/git'
 import { useStore } from '../../store'
 import { confirmDialog, formDialog, promptDialog, toast, type MenuItem } from '../ui/overlays'
-import { checkoutRef, copyText, errText, run } from '../toolbar/actions'
+import { checkoutRef, copyText, errText, forcePush, pushBranch, run } from '../toolbar/actions'
 import { splitRemoteRef } from './tree'
+import { confirmRebase, fullRefName } from '../../lib/refs'
 
-const UNMERGED = /not fully merged|no est[aá] (completamente|totalmente) fusionad/i
+const UNMERGED = /not fully merged/i
 
 /** Current branch name, or null when HEAD is detached / unknown */
 const currentBranch = (): string | null => {
@@ -23,23 +24,28 @@ async function runOp(label: string, fn: (repo: string) => Promise<unknown>, done
   if (ok && !useStore.getState().status?.inProgress) toast(doneMsg, 'success')
 }
 
-const mergeInto = (ref: string, current: string) =>
-  runOp('Merge', (repo) => git.merge(repo, ref), `"${ref}" fusionada en "${current}"`)
+const mergeInto = (ref: Ref, current: string) =>
+  runOp('Merge', (repo) => git.merge(repo, fullRefName(ref)), `Merged "${ref.name}" into "${current}"`)
+
+async function rebaseOnto(ref: Ref, current: string): Promise<void> {
+  if (!(await confirmRebase(current, ref.name))) return
+  await runOp('Rebase', (repo) => git.rebase(repo, fullRefName(ref)), `Rebased "${current}" onto "${ref.name}"`)
+}
 
 // ----- local branches -------------------------------------------------------
 
 export async function deleteLocalBranch(name: string): Promise<void> {
   const yes = await confirmDialog({
-    title: 'Eliminar rama',
-    message: `¿Eliminar la rama local "${name}"?`,
-    confirmLabel: 'Eliminar',
+    title: 'Delete branch',
+    message: `Delete the local branch "${name}"?`,
+    confirmLabel: 'Delete',
     danger: true
   })
   if (!yes) return
 
   // `run` only reports success/failure, so the "not fully merged" case is detected here
   const result = { deleted: false, unmerged: false }
-  await run('Eliminar rama', async (repo) => {
+  await run('Delete branch', async (repo) => {
     try {
       await git.deleteBranch(repo, name)
       result.deleted = true
@@ -49,58 +55,58 @@ export async function deleteLocalBranch(name: string): Promise<void> {
     }
   })
   if (result.deleted) {
-    toast(`Rama "${name}" eliminada`, 'success')
+    toast(`Branch "${name}" deleted`, 'success')
     return
   }
   if (!result.unmerged) return
 
   const force = await confirmDialog({
-    title: 'La rama no está fusionada',
-    message: `"${name}" tiene commits que no están fusionados en ninguna otra rama. Si la eliminas podrías perderlos.\n\n¿Forzar la eliminación?`,
-    confirmLabel: 'Forzar eliminación',
+    title: 'Branch is not fully merged',
+    message: `"${name}" has commits that are not merged into any other branch. Deleting it could lose them.\n\nDelete it anyway?`,
+    confirmLabel: 'Force delete',
     danger: true
   })
-  if (force) await run('Eliminar rama', (repo) => git.deleteBranch(repo, name, true), `Rama "${name}" eliminada`)
+  if (force) await run('Delete branch', (repo) => git.deleteBranch(repo, name, true), `Branch "${name}" deleted`)
 }
 
 async function renameBranch(name: string): Promise<void> {
   const typed = await promptDialog({
-    title: 'Renombrar rama',
-    label: `Nuevo nombre para "${name}"`,
+    title: 'Rename branch',
+    label: `New name for "${name}"`,
     defaultValue: name,
-    confirmLabel: 'Renombrar'
+    confirmLabel: 'Rename'
   })
   const next = typed?.replace(/\s+/g, '-')
   if (!next || next === name) return
-  await run('Renombrar rama', (repo) => git.renameBranch(repo, name, next), `Rama renombrada a "${next}"`)
+  await run('Rename branch', (repo) => git.renameBranch(repo, name, next), `Branch renamed to "${next}"`)
 }
 
 export function localBranchMenu(ref: Ref): MenuItem[] {
   const current = currentBranch()
   const name = ref.name
   const other = !ref.isCurrent && current !== null
+  const hasRemotes = useStore.getState().remotes.length > 0
   return [
-    { label: `Checkout ${name}`, onClick: () => void checkoutRef(name), disabled: ref.isCurrent },
+    { label: `Checkout ${name}`, onClick: () => void checkoutRef(fullRefName(ref)), disabled: ref.isCurrent },
     { separator: true },
     {
-      label: other ? `Fusionar ${name} en ${current}` : 'Fusionar en la rama actual',
-      onClick: () => current && void mergeInto(name, current),
+      label: other ? `Merge ${name} into ${current}` : 'Merge into the current branch',
+      onClick: () => current && void mergeInto(ref, current),
       disabled: !other
     },
     {
-      label: other ? `Rebase de ${current} sobre ${name}` : 'Rebase de la rama actual sobre esta',
-      onClick: () => void runOp('Rebase', (repo) => git.rebase(repo, name), `"${current}" reubicada sobre "${name}"`),
+      label: other ? `Rebase ${current} onto ${name}` : 'Rebase the current branch onto this one',
+      onClick: () => current && void rebaseOnto(ref, current),
       disabled: !other
     },
     { separator: true },
-    {
-      label: ref.upstream ? `Push a ${ref.upstream}` : 'Push',
-      onClick: () => void run('Push', (repo) => git.push(repo, { branch: name }), `Push de "${name}" completado`)
-    },
-    { label: 'Renombrar…', onClick: () => void renameBranch(name) },
-    { label: 'Copiar nombre', onClick: () => void copyText(name) },
+    { label: ref.upstream ? `Push to ${ref.upstream}` : 'Push', onClick: () => void pushBranch(name), disabled: !hasRemotes },
+    { label: 'Force Push (with lease)…', onClick: () => void forcePush(name), disabled: !hasRemotes, danger: true },
     { separator: true },
-    { label: `Eliminar ${name}`, onClick: () => void deleteLocalBranch(name), disabled: ref.isCurrent, danger: true }
+    { label: 'Rename…', onClick: () => void renameBranch(name) },
+    { label: 'Copy branch name', onClick: () => void copyText(name) },
+    { separator: true },
+    { label: `Delete ${name}`, onClick: () => void deleteLocalBranch(name), disabled: ref.isCurrent, danger: true }
   ]
 }
 
@@ -112,66 +118,66 @@ export function remoteBranchMenu(ref: Ref, remotes: Remote[]): MenuItem[] {
   const { remote, branch } = splitRemoteRef(name, remotes)
   const onDelete = async () => {
     const yes = await confirmDialog({
-      title: 'Eliminar rama remota',
-      message: `¿Eliminar la rama "${branch}" del remoto "${remote}"?\n\nEsto la borra en el servidor para todo el equipo.`,
-      confirmLabel: 'Eliminar del remoto',
+      title: 'Delete remote branch',
+      message: `Delete the branch "${branch}" from remote "${remote}"?\n\nThis removes it on the server for everyone.`,
+      confirmLabel: 'Delete from remote',
       danger: true
     })
     if (yes)
       await run(
-        'Eliminar rama remota',
+        'Delete remote branch',
         (repo) => git.deleteRemoteBranch(repo, remote, branch),
-        `Rama "${name}" eliminada del remoto`
+        `Deleted "${name}" from the remote`
       )
   }
   return [
-    { label: `Checkout ${name}`, onClick: () => void checkoutRef(name) },
+    { label: `Checkout ${name}`, onClick: () => void checkoutRef(fullRefName(ref)) },
     {
-      label: current ? `Fusionar ${name} en ${current}` : 'Fusionar en la rama actual',
-      onClick: () => current && void mergeInto(name, current),
+      label: current ? `Merge ${name} into ${current}` : 'Merge into the current branch',
+      onClick: () => current && void mergeInto(ref, current),
       disabled: !current
     },
-    { label: 'Copiar nombre', onClick: () => void copyText(name) },
+    { label: 'Copy branch name', onClick: () => void copyText(name) },
     { separator: true },
-    { label: `Eliminar ${name}`, onClick: () => void onDelete(), danger: true }
+    { label: `Delete ${name}`, onClick: () => void onDelete(), danger: true }
   ]
 }
 
 export async function addRemote(): Promise<void> {
   const hasOrigin = useStore.getState().remotes.some((r) => r.name === 'origin')
   const values = await formDialog({
-    title: 'Añadir remoto',
-    confirmLabel: 'Añadir remoto',
+    title: 'Add remote',
+    confirmLabel: 'Add remote',
     fields: [
-      { name: 'name', label: 'Nombre', defaultValue: hasOrigin ? '' : 'origin', placeholder: 'origin' },
-      { name: 'url', label: 'URL', placeholder: 'https://servidor/usuario/repositorio.git' }
+      { name: 'name', label: 'Name', defaultValue: hasOrigin ? '' : 'origin', placeholder: 'origin' },
+      { name: 'url', label: 'URL', placeholder: 'https://host/user/repository.git' }
     ]
   })
   if (!values) return
   const name = values.name.trim()
   const url = values.url.trim()
   if (!name || !url) {
-    toast('Indica el nombre y la URL del remoto', 'error')
+    toast('Enter the name and the URL of the remote', 'error')
     return
   }
-  await run('Añadir remoto', (repo) => git.addRemote(repo, name, url), `Remoto "${name}" añadido`)
+  await run('Add remote', (repo) => git.addRemote(repo, name, url), `Remote "${name}" added`)
 }
 
 export function remoteMenu(name: string, url: string | undefined): MenuItem[] {
   const onRemove = async () => {
     const yes = await confirmDialog({
-      title: 'Quitar remoto',
-      message: `¿Quitar el remoto "${name}"${url ? ` (${url})` : ''}?\n\nSe eliminarán también sus ramas de seguimiento locales.`,
-      confirmLabel: 'Quitar remoto',
+      title: 'Remove remote',
+      message: `Remove the remote "${name}"${url ? ` (${url})` : ''}?\n\nIts local remote-tracking branches are removed too.`,
+      confirmLabel: 'Remove remote',
       danger: true
     })
-    if (yes) await run('Quitar remoto', (repo) => git.removeRemote(repo, name), `Remoto "${name}" quitado`)
+    if (yes) await run('Remove remote', (repo) => git.removeRemote(repo, name), `Remote "${name}" removed`)
   }
   return [
-    { label: 'Fetch', onClick: () => void run('Fetch', (repo) => git.fetch(repo), 'Fetch completado') },
-    { label: 'Copiar URL', onClick: () => url && void copyText(url), disabled: !url },
+    { label: 'Fetch', onClick: () => void run('Fetch', (repo) => git.fetch(repo), 'Fetch complete') },
+    { label: 'Copy URL', onClick: () => url && void copyText(url), disabled: !url },
     { separator: true },
-    { label: `Quitar ${name}`, onClick: () => void onRemove(), danger: true }
+    { label: `Remove ${name}`, onClick: () => void onRemove(), danger: true }
   ]
 }
 
@@ -181,24 +187,31 @@ export function stashMenu(ref: Ref, index: number): MenuItem[] {
   const title = ref.message || ref.name
   const onDrop = async () => {
     const yes = await confirmDialog({
-      title: 'Eliminar stash',
-      message: `¿Eliminar el stash "${title}"?\n\nLos cambios guardados en él se perderán.`,
-      confirmLabel: 'Eliminar',
+      title: 'Drop stash',
+      message: `Drop the stash "${title}"?\n\nThe changes saved in it will be lost.`,
+      confirmLabel: 'Drop',
       danger: true
     })
-    if (yes) await run('Eliminar stash', (repo) => git.stashDrop(repo, index), 'Stash eliminado')
+    if (yes) {
+      // The hash makes the backend refuse if stash@{index} is no longer this stash
+      await run(
+        'Drop stash',
+        (repo) => git.stashDrop(repo, index, ref.hash),
+        `Stash dropped. To recover it: git stash apply ${ref.hash.slice(0, 10)}`
+      )
+    }
   }
   return [
     {
-      label: 'Aplicar stash',
-      onClick: () => void run('Aplicar stash', (repo) => git.stashApply(repo, index), 'Stash aplicado')
+      label: 'Apply Stash',
+      onClick: () => void run('Apply stash', (repo) => git.stashApply(repo, index, ref.hash), 'Stash applied')
     },
     {
-      label: 'Pop (aplicar y eliminar)',
-      onClick: () => void run('Pop', (repo) => git.stashPop(repo, index), 'Stash aplicado y eliminado')
+      label: 'Pop Stash',
+      onClick: () => void run('Pop', (repo) => git.stashPop(repo, index, ref.hash), 'Stash applied and dropped')
     },
     { separator: true },
-    { label: 'Eliminar stash', onClick: () => void onDrop(), danger: true }
+    { label: 'Delete Stash', onClick: () => void onDrop(), danger: true }
   ]
 }
 
@@ -208,17 +221,17 @@ export function tagMenu(ref: Ref): MenuItem[] {
   const name = ref.name
   const onDelete = async () => {
     const yes = await confirmDialog({
-      title: 'Eliminar tag',
-      message: `¿Eliminar el tag local "${name}"?`,
-      confirmLabel: 'Eliminar',
+      title: 'Delete tag',
+      message: `Delete the local tag "${name}"?`,
+      confirmLabel: 'Delete',
       danger: true
     })
-    if (yes) await run('Eliminar tag', (repo) => git.deleteTag(repo, name), `Tag "${name}" eliminado`)
+    if (yes) await run('Delete tag', (repo) => git.deleteTag(repo, name), `Tag "${name}" deleted`)
   }
   return [
-    { label: `Checkout ${name}`, onClick: () => void checkoutRef(name) },
-    { label: 'Copiar nombre', onClick: () => void copyText(name) },
+    { label: `Checkout ${name}`, onClick: () => void checkoutRef(fullRefName(ref)) },
+    { label: 'Copy tag name', onClick: () => void copyText(name) },
     { separator: true },
-    { label: `Eliminar ${name}`, onClick: () => void onDelete(), danger: true }
+    { label: `Delete ${name}`, onClick: () => void onDelete(), danger: true }
   ]
 }

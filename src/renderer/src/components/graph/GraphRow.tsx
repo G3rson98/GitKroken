@@ -75,13 +75,13 @@ function pillTitle(label: RefLabel): string {
   switch (label.kind) {
     case 'local': {
       const { upstream, ahead = 0, behind = 0 } = label.local ?? {}
-      let text = (label.isCurrent ? 'Rama actual: ' : 'Rama local: ') + label.name
+      let text = (label.isCurrent ? 'Current branch: ' : 'Local branch: ') + label.name
       if (label.remote) text += `\nSincronizada con ${label.remote.name}`
       else if (upstream && ahead + behind > 0) text += `\n${upstream}: ↑${ahead} ↓${behind}`
       return text
     }
     case 'remote':
-      return `Rama remota: ${label.name}`
+      return `Remote branch: ${label.name}`
     case 'tag':
       return `Etiqueta: ${label.name}`
     case 'stash':
@@ -203,7 +203,7 @@ export const CommitRow = memo(function CommitRow({ commit, row, labels, selected
         <GraphCell row={row} kind={kind} rowH={rowH} text={text} linked={labels !== undefined} />
       </div>
       <div className="g-c g-c-msg" title={commit.subject}>
-        {commit.subject || <span className="g-dim">(sin mensaje)</span>}
+        {commit.subject || <span className="g-dim">(no message)</span>}
         {commit.body && <span className="g-msg-body">{commit.body.split('\n', 1)[0]}</span>}
       </div>
       <div className="g-c g-c-author" title={commit.email ? `${commit.author} <${commit.email}>` : commit.author}>
@@ -251,25 +251,25 @@ export const WipRow = memo(function WipRow({ row, counts, selected, top, rowH }:
       <div className="g-c g-c-msg g-wip-msg">
         <span className="g-wip-text">// WIP</span>
         {counts.modified > 0 && (
-          <span className="g-count modified" title={`${counts.modified} modificados`}>
+          <span className="g-count modified" title={`${counts.modified} modified`}>
             <Pencil size={11} />
             {counts.modified}
           </span>
         )}
         {counts.added > 0 && (
-          <span className="g-count added" title={`${counts.added} añadidos`}>
+          <span className="g-count added" title={`${counts.added} added`}>
             <Plus size={12} strokeWidth={3} />
             {counts.added}
           </span>
         )}
         {counts.deleted > 0 && (
-          <span className="g-count deleted" title={`${counts.deleted} eliminados`}>
+          <span className="g-count deleted" title={`${counts.deleted} deleted`}>
             <Minus size={12} strokeWidth={3} />
             {counts.deleted}
           </span>
         )}
         {counts.conflicted > 0 && (
-          <span className="g-count conflicted" title={`${counts.conflicted} en conflicto`}>
+          <span className="g-count conflicted" title={`${counts.conflicted} conflicted`}>
             <TriangleAlert size={11} />
             {counts.conflicted}
           </span>

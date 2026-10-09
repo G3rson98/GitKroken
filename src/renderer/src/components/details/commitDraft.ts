@@ -7,6 +7,8 @@ export interface Draft {
   summary: string
   description: string
   amend: boolean
+  /** HEAD when Amend was ticked: the tick is void once HEAD is another commit */
+  amendHead?: string
   /** What the user had typed before ticking Amend; restored when unticked */
   saved: { summary: string; description: string } | null
 }

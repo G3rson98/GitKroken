@@ -6,13 +6,13 @@ import { toast } from '../ui/overlays'
 import './common.css'
 
 export const STATUS_META: Record<FileStatus, { label: string; Icon: LucideIcon }> = {
-  added: { label: 'Añadido', Icon: Plus },
-  modified: { label: 'Modificado', Icon: Pencil },
-  deleted: { label: 'Eliminado', Icon: Minus },
-  renamed: { label: 'Renombrado', Icon: ArrowRight },
-  copied: { label: 'Copiado', Icon: Copy },
-  untracked: { label: 'Sin seguimiento', Icon: Plus },
-  conflicted: { label: 'En conflicto', Icon: TriangleAlert }
+  added: { label: 'Added', Icon: Plus },
+  modified: { label: 'Modified', Icon: Pencil },
+  deleted: { label: 'Deleted', Icon: Minus },
+  renamed: { label: 'Renamed', Icon: ArrowRight },
+  copied: { label: 'Copied', Icon: Copy },
+  untracked: { label: 'Untracked', Icon: Plus },
+  conflicted: { label: 'Conflicted', Icon: TriangleAlert }
 }
 
 export function StatusIcon({ status, size = 13 }: { status: FileStatus; size?: number }) {
@@ -65,8 +65,8 @@ export function splitPath(path: string): [dir: string, name: string] {
 
 export function copyText(text: string, what: string): void {
   navigator.clipboard.writeText(text).then(
-    () => toast(`${what} copiado al portapapeles`, 'success'),
-    () => toast('No se pudo copiar al portapapeles', 'error')
+    () => toast(`${what} copied to clipboard`, 'success'),
+    () => toast('Could not copy to the clipboard', 'error')
   )
 }
 

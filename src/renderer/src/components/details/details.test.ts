@@ -89,11 +89,11 @@ describe('commit message helpers', () => {
     expect(hueOf('a@b.c')).toBeLessThan(360)
   })
 
-  it('formats relative times in Spanish', () => {
+  it('formats relative times in English', () => {
     const now = 1_800_000_000
-    expect(relativeTime(now - 3 * 86400, now)).toBe('hace 3 días')
-    expect(relativeTime(now - 2 * 3600, now)).toBe('hace 2 horas')
-    expect(relativeTime(now - 86400, now)).toBe('ayer')
-    expect(relativeTime(now - 5, now)).toBe('ahora')
+    expect(relativeTime(now - 3 * 86400, now)).toBe('3 days ago')
+    expect(relativeTime(now - 2 * 3600, now)).toBe('2 hours ago')
+    expect(relativeTime(now - 86400, now)).toBe('yesterday')
+    expect(relativeTime(now - 5, now)).toBe('now')
   })
 })

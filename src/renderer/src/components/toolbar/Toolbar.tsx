@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Archive,
   ArchiveRestore,
@@ -10,16 +10,32 @@ import {
   GitBranch,
   GitBranchPlus,
   LoaderCircle,
+  Redo2,
   RefreshCw,
   SquareTerminal,
-  TriangleAlert
+  TriangleAlert,
+  Undo2,
+  X
 } from 'lucide-react'
-import type { Status } from '@shared/types'
+import type { Status, UndoState } from '@shared/types'
 import { useStore } from '../../store'
 import { git } from '../../lib/git'
 import { confirmDialog, toast } from '../ui/overlays'
 import { Selector, type SelectorItem } from './Selector'
-import { checkoutRef, createBranchAtHead, errText, menuBelow, openRepoFromDisk, run, shortSha } from './actions'
+import {
+  cancelNetworkOp,
+  checkoutRef,
+  createBranchAtHead,
+  errText,
+  forcePush,
+  isNetworkOp,
+  menuBelow,
+  openRepoFromDisk,
+  pushBranch,
+  run,
+  shortSha
+} from './actions'
+import { fullRefName, topStash } from '../../lib/refs'
 import './toolbar.css'
 
 const OP_LABEL: Record<NonNullable<Status['inProgress']>, string> = {
@@ -48,6 +64,66 @@ function ToolButton(props: {
   )
 }
 
+const NOTHING_TO_UNDO: UndoState = { undo: null, redo: null }
+
+/**
+ * What Undo / Redo would do right now. Asked again after every store refresh
+ * (each refresh replaces `status` and `refs`). Any failure means "nothing to undo".
+ */
+function useUndoState(): UndoState {
+  const activeRepo = useStore((s) => s.activeRepo)
+  const status = useStore((s) => s.status)
+  const refs = useStore((s) => s.refs)
+  const [state, setState] = useState<UndoState>(NOTHING_TO_UNDO)
+  const shownFor = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (shownFor.current !== activeRepo) {
+      // Another repository: its history is not ours to offer.
+      shownFor.current = activeRepo
+      setState(NOTHING_TO_UNDO)
+    }
+    if (!activeRepo) return
+    let stale = false
+    git.undoState(activeRepo).then(
+      (next) => {
+        if (!stale) setState({ undo: next?.undo ?? null, redo: next?.redo ?? null })
+      },
+      () => {
+        if (!stale) setState(NOTHING_TO_UNDO)
+      }
+    )
+    return () => {
+      stale = true
+    }
+  }, [activeRepo, status, refs])
+
+  return state
+}
+
+/** Spinner + label of the running operation, with Cancel while it is a network transfer. */
+function BusyIndicator({ busy }: { busy: string }) {
+  const [cancelling, setCancelling] = useState(false)
+  // A new operation gets a fresh button.
+  useEffect(() => setCancelling(false), [busy])
+  const onCancel = () => {
+    setCancelling(true)
+    void cancelNetworkOp().finally(() => setCancelling(false))
+  }
+  return (
+    <span className="tool-busy" title={busy}>
+      <LoaderCircle size={15} className="tool-spin" />
+      <span className="tool-busy-label">{busy}…</span>
+      {isNetworkOp(busy) && (
+        <button className="tool-cancel" title={`Cancel ${busy}`} disabled={cancelling} onClick={onCancel}>
+          <X size={12} />
+          Cancel
+        </button>
+      )}
+    </span>
+  )
+}
+
 function OperationBanner() {
   const status = useStore((s) => s.status)
   const busy = useStore((s) => s.busy)
@@ -56,39 +132,39 @@ function OperationBanner() {
 
   const label = OP_LABEL[op]
   const n = status.conflicted.length
-  const conflicts = n === 0 ? 'sin conflictos pendientes' : n === 1 ? '1 conflicto' : `${n} conflictos`
+  const conflicts = n === 0 ? 'no conflicts left' : n === 1 ? '1 conflict' : `${n} conflicts`
 
   const onContinue = async () => {
-    const ok = await run(`Continuar ${label}`, (repo) => git.continueOp(repo))
+    const ok = await run(`Continue ${label}`, (repo) => git.continueOp(repo))
     // a rebase may stop again on the next commit, so only announce it when it really ended
-    if (ok && !useStore.getState().status?.inProgress) toast(`${label} completado`, 'success')
+    if (ok && !useStore.getState().status?.inProgress) toast(`${label} complete`, 'success')
   }
   const onAbort = async () => {
     const yes = await confirmDialog({
-      title: `Abortar ${label}`,
-      message: `Se descartará el ${label} en curso y se volverá al estado anterior.`,
-      confirmLabel: 'Abortar',
+      title: `Abort ${label}`,
+      message: `The ${label.toLowerCase()} in progress will be discarded and the repository goes back to how it was before.`,
+      confirmLabel: 'Abort',
       danger: true
     })
-    if (yes) await run(`Abortar ${label}`, (repo) => git.abort(repo), `${label} abortado`)
+    if (yes) await run(`Abort ${label}`, (repo) => git.abort(repo), `${label} aborted`)
   }
 
   return (
     <div className={`tool-banner${n > 0 ? ' conflicts' : ''}`} role="alert">
       <TriangleAlert size={16} />
       <span className="tool-banner-text">
-        <strong>{label} en curso</strong> — {conflicts}
+        <strong>{label} in progress</strong> — {conflicts}
       </span>
       <button
         className="btn btn-primary"
         disabled={!!busy || n > 0}
-        title={n > 0 ? 'Resuelve y prepara los archivos en conflicto para continuar' : `Continuar ${label}`}
+        title={n > 0 ? 'Resolve and stage the conflicted files to continue' : `Continue ${label}`}
         onClick={() => void onContinue()}
       >
-        Continuar
+        Continue
       </button>
       <button className="btn btn-danger" disabled={!!busy} onClick={() => void onAbort()}>
-        Abortar
+        Abort
       </button>
     </div>
   )
@@ -103,6 +179,7 @@ export function Toolbar() {
   const status = useStore((s) => s.status)
   const busy = useStore((s) => s.busy)
   const loading = useStore((s) => s.loading)
+  const undoState = useUndoState()
 
   const locked = busy !== null
   const locals = refs.filter((r) => r.type === 'head')
@@ -120,7 +197,7 @@ export function Toolbar() {
       key: `tab:${t.path}`,
       label: t.name,
       hint: t.path,
-      group: 'Abiertos',
+      group: 'Open',
       current: t.path === activeRepo,
       onSelect: () => {
         if (t.path !== useStore.getState().activeRepo) useStore.getState().setActive(t.path)
@@ -132,7 +209,7 @@ export function Toolbar() {
         key: `recent:${r.path}`,
         label: r.name,
         hint: r.path,
-        group: 'Recientes',
+        group: 'Recent',
         onSelect: () => void useStore.getState().openRepo(r.path)
       }))
   ]
@@ -143,69 +220,94 @@ export function Toolbar() {
     hint: [r.ahead ? `↑${r.ahead}` : '', r.behind ? `↓${r.behind}` : ''].filter(Boolean).join(' ') || undefined,
     current: r.isCurrent,
     onSelect: () => {
-      if (!r.isCurrent) void checkoutRef(r.name)
+      if (!r.isCurrent) void checkoutRef(fullRefName(r))
     }
   }))
 
-  const branchValue = branchName ?? (status?.head ? shortSha(status.head) : status ? 'sin commits' : '…')
+  const branchValue = branchName ?? (status?.head ? shortSha(status.head) : status ? 'no commits' : '…')
 
   // ----- actions -----------------------------------------------------------
-  const pull = (rebase: boolean) =>
-    void run(rebase ? 'Pull (rebase)' : 'Pull', (repo) => git.pull(repo, { rebase }), 'Pull completado')
-  const fetchAll = () => void run('Fetch', (repo) => git.fetch(repo), 'Fetch completado')
-  const push = () => void run('Push', (repo) => git.push(repo), 'Push completado')
-  const stash = () => void run('Stash', (repo) => git.stashSave(repo), 'Cambios guardados en el stash')
-  const pop = () => void run('Pop', (repo) => git.stashPop(repo, 0), 'Stash aplicado')
+  /** `rebase` undefined: whatever the user configured (pull.rebase), merge otherwise */
+  const pull = (rebase?: boolean) =>
+    void run(
+      rebase === undefined ? 'Pull' : rebase ? 'Pull (rebase)' : 'Pull (merge)',
+      (repo) => (rebase === undefined ? git.pull(repo) : git.pull(repo, { rebase })),
+      'Pull complete'
+    )
+  const fetchAll = () => void run('Fetch', (repo) => git.fetch(repo), 'Fetch complete')
+  const push = () => void pushBranch()
+  const stash = () => void run('Stash', (repo) => git.stashSave(repo), 'Changes stashed')
+  const pop = () => {
+    const top = topStash()
+    if (top) void run('Pop', (repo) => git.stashPop(repo, 0, top.hash), 'Stash applied')
+  }
+  const undo = () => void run('Undo', (repo) => git.undo(repo), undoState.undo ? `Undone: ${undoState.undo}` : undefined)
+  const redo = () => void run('Redo', (repo) => git.redo(repo), undoState.redo ? `Redone: ${undoState.redo}` : undefined)
   const openTerminal = () => {
     if (activeRepo) git.openInTerminal(activeRepo).catch((e) => toast(`Terminal: ${errText(e)}`, 'error'))
   }
 
-  const noRemoteHint = hasRemotes ? '' : ' (no hay remotos configurados)'
+  const noRemoteHint = hasRemotes ? '' : ' (no remotes configured)'
 
   return (
     <>
       <div className="tool">
         <div className="tool-left">
           <Selector
-            caption="repositorio"
+            caption="repository"
             value={repoName}
             title={activeRepo ?? undefined}
             icon={<FolderGit2 size={14} />}
             items={repoItems}
-            filterPlaceholder="Filtrar repositorios"
-            emptyText="Ningún repositorio coincide"
-            footer={{ label: 'Abrir repositorio…', onSelect: () => void openRepoFromDisk() }}
+            filterPlaceholder="Filter repositories"
+            emptyText="No repository matches"
+            footer={{ label: 'Open repository…', onSelect: () => void openRepoFromDisk() }}
           />
           <ChevronRight size={14} className="tool-crumb-sep" />
           <Selector
-            caption={detached ? 'HEAD separado' : 'rama'}
+            caption={detached ? 'detached HEAD' : 'branch'}
             value={branchValue}
-            title={detached ? `HEAD separado en ${status?.head ?? ''}` : branchName ?? undefined}
+            title={detached ? `Detached HEAD at ${status?.head ?? ''}` : branchName ?? undefined}
             icon={<GitBranch size={14} />}
             items={branchItems}
-            filterPlaceholder="Filtrar ramas locales"
-            emptyText="Ninguna rama coincide"
+            filterPlaceholder="Filter local branches"
+            emptyText="No branch matches"
             disabled={locked}
           />
         </div>
 
         <div className="tool-center">
+          <ToolButton
+            icon={<Undo2 size={18} />}
+            label="Undo"
+            title={undoState.undo ? `Undo: ${undoState.undo}` : 'Nothing to undo'}
+            disabled={locked || !undoState.undo}
+            onClick={undo}
+          />
+          <ToolButton
+            icon={<Redo2 size={18} />}
+            label="Redo"
+            title={undoState.redo ? `Redo: ${undoState.redo}` : 'Nothing to redo'}
+            disabled={locked || !undoState.redo}
+            onClick={redo}
+          />
+          <span className="tool-sep" />
           <div className="tool-split">
             <ToolButton
               icon={<ArrowDownToLine size={18} />}
               label="Pull"
-              title={`Pull: traer y fusionar los cambios del remoto${noRemoteHint}`}
+              title={`Pull: fetch and integrate the remote changes, using your pull.rebase setting (merge by default)${noRemoteHint}`}
               badge={current?.behind}
               disabled={locked || !hasRemotes || detached}
-              onClick={() => pull(false)}
+              onClick={() => pull()}
             />
             <button
               className="tool-caret"
-              title="Opciones de pull"
+              title="Pull options"
               disabled={locked || !hasRemotes}
               onClick={(e) =>
                 menuBelow(e.currentTarget, [
-                  { label: 'Fetch de todos los remotos', onClick: fetchAll },
+                  { label: 'Fetch All', onClick: fetchAll },
                   { separator: true },
                   { label: 'Pull (merge)', onClick: () => pull(false), disabled: detached },
                   { label: 'Pull (rebase)', onClick: () => pull(true), disabled: detached }
@@ -215,19 +317,34 @@ export function Toolbar() {
               <ChevronDown size={12} />
             </button>
           </div>
-          <ToolButton
-            icon={<ArrowUpFromLine size={18} />}
-            label="Push"
-            title={`Push: enviar la rama actual al remoto${noRemoteHint}`}
-            badge={current?.ahead}
-            disabled={locked || !hasRemotes || detached}
-            onClick={push}
-          />
+          <div className="tool-split">
+            <ToolButton
+              icon={<ArrowUpFromLine size={18} />}
+              label="Push"
+              title={`Push: send the current branch to the remote${noRemoteHint}`}
+              badge={current?.ahead}
+              disabled={locked || !hasRemotes || detached}
+              onClick={push}
+            />
+            <button
+              className="tool-caret"
+              title="Push options"
+              disabled={locked || !hasRemotes || detached || !branchName}
+              onClick={(e) =>
+                menuBelow(e.currentTarget, [
+                  { label: 'Push', onClick: push },
+                  { label: 'Force Push (with lease)…', onClick: () => branchName && void forcePush(branchName), danger: true }
+                ])
+              }
+            >
+              <ChevronDown size={12} />
+            </button>
+          </div>
           <span className="tool-sep" />
           <ToolButton
             icon={<GitBranchPlus size={18} />}
-            label="Rama"
-            title="Crear una rama en HEAD y cambiar a ella"
+            label="Branch"
+            title="Create a branch at HEAD and check it out"
             disabled={locked}
             onClick={() => void createBranchAtHead()}
           />
@@ -235,35 +352,30 @@ export function Toolbar() {
           <ToolButton
             icon={<Archive size={18} />}
             label="Stash"
-            title={hasChanges ? 'Guardar los cambios locales en el stash' : 'No hay cambios que guardar'}
+            title={hasChanges ? 'Stash the local changes' : 'No changes to stash'}
             disabled={locked || !hasChanges}
             onClick={stash}
           />
           <ToolButton
             icon={<ArchiveRestore size={18} />}
             label="Pop"
-            title={stashCount ? 'Aplicar y eliminar el stash más reciente' : 'No hay stashes'}
+            title={stashCount ? 'Apply and drop the most recent stash' : 'No stashes'}
             disabled={locked || stashCount === 0}
             onClick={pop}
           />
         </div>
 
         <div className="tool-right">
-          {busy && (
-            <span className="tool-busy" title={busy}>
-              <LoaderCircle size={15} className="tool-spin" />
-              <span className="tool-busy-label">{busy}…</span>
-            </span>
-          )}
+          {busy && <BusyIndicator busy={busy} />}
           <ToolButton
             icon={<SquareTerminal size={18} />}
             label="Terminal"
-            title="Abrir una terminal en el repositorio"
+            title="Open a terminal in the repository"
             onClick={openTerminal}
           />
           <button
             className="tool-icon-btn"
-            title="Actualizar"
+            title="Refresh"
             disabled={locked}
             onClick={() => void useStore.getState().refresh()}
           >

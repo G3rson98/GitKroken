@@ -12,7 +12,7 @@ import {
   useState,
   type CSSProperties
 } from 'react'
-import { AlignJustify, Columns2, FileDiff, Rows3, X } from 'lucide-react'
+import { AlignJustify, Columns2, FileDiff, History, Rows3, UserSearch, X } from 'lucide-react'
 import type { FileChange, FileStatus } from '@shared/types'
 import { useStore, type SelectedFile } from '../../store'
 import { git } from '../../lib/git'
@@ -23,6 +23,7 @@ import { buildHunkPatch } from './patch'
 import { ROW_HEIGHT, buildRows, maxWidths, rowAt, rowOffsets, visibleRange, type DiffRow, type ViewMode } from './rows'
 import { wordDiff, type Segment, type WordDiff } from './wordDiff'
 import { highlightFile, mergeTokens, type TokenMap } from './highlight'
+import { hasHistory, openBlame, openFileHistory, type FileRef } from '../history/entry'
 import './DiffView.css'
 
 const MODES = ['hunk', 'inline', 'split'] as const
@@ -147,7 +148,7 @@ export function DiffView() {
     const { run } = useStore.getState()
     const patch = (i: number, reverse: boolean) => {
       const f = fileRef.current
-      if (!f) throw new Error('El diff ya no está disponible')
+      if (!f) throw new Error('The diff is no longer available')
       return buildHunkPatch(f, i, { reverse })
     }
     return {
@@ -156,13 +157,16 @@ export function DiffView() {
       unstage: (i) =>
         void run('Unstage hunk', (r) => git.applyPatch(r, patch(i, true), { cached: true, reverse: true })),
       discard: async (i) => {
+        // Built before asking: if the file changes while the dialog is open, the
+        // diff is re-parsed and index `i` could then be a different hunk.
+        const exact = patch(i, true)
         const ok = await confirmDialog({
-          title: 'Descartar hunk',
-          message: `Se perderán los cambios de este bloque en "${sel.path}". Esta acción no se puede deshacer.`,
-          confirmLabel: 'Descartar hunk',
+          title: 'Discard hunk',
+          message: `The changes of this hunk in "${sel.path}" will be lost. This cannot be undone.`,
+          confirmLabel: 'Discard hunk',
           danger: true
         })
-        if (ok) void run('Discard hunk', (r) => git.applyPatch(r, patch(i, true), { reverse: true }))
+        if (ok) void run('Discard hunk', (r) => git.applyPatch(r, exact, { reverse: true }))
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,16 +194,16 @@ export function DiffView() {
         conflicted={conflicted}
       />
       {!current ? (
-        <Notice text="Cargando diff…" />
+        <Notice text="Loading diff…" />
       ) : current.error ? (
-        <Notice text="No se pudo cargar el diff" detail={current.error} error />
+        <Notice text="Could not load the diff" detail={current.error} error />
       ) : !file ? (
         <Notice
-          text={sel.untracked ? 'Archivo vacío' : 'No hay diferencias que mostrar'}
-          detail={sel.untracked ? undefined : 'El archivo no tiene cambios de contenido en esta comparación.'}
+          text={sel.untracked ? 'Empty file' : 'No differences to show'}
+          detail={sel.untracked ? undefined : 'The file has no content changes in this comparison.'}
         />
       ) : file.binary ? (
-        <Notice text="Archivo binario" detail="No se puede mostrar el diff de un archivo binario." />
+        <Notice text="Binary file" detail="The diff of a binary file cannot be shown." />
       ) : file.hunks.length === 0 ? (
         <Notice text={emptyReason(file)} />
       ) : (
@@ -237,14 +241,14 @@ function toSelection(f: FileChange, staged: boolean): SelectedFile {
 }
 
 function emptyReason(file: DiffFile): string {
-  if (file.status === 'renamed') return 'Archivo renombrado sin cambios de contenido'
-  if (file.status === 'copied') return 'Archivo copiado sin cambios de contenido'
+  if (file.status === 'renamed') return 'File renamed without content changes'
+  if (file.status === 'copied') return 'File copied without content changes'
   if (file.oldMode && file.newMode && file.oldMode !== file.newMode) {
-    return `Solo cambió el modo del archivo (${file.oldMode} → ${file.newMode})`
+    return `Only the file mode changed (${file.oldMode} → ${file.newMode})`
   }
-  if (file.status === 'added') return 'Archivo vacío'
-  if (file.status === 'deleted') return 'Se eliminó un archivo vacío'
-  return 'No hay diferencias que mostrar'
+  if (file.status === 'added') return 'Empty file'
+  if (file.status === 'deleted') return 'An empty file was deleted'
+  return 'No differences to show'
 }
 
 function Notice(props: { text: string; detail?: string; error?: boolean }) {
@@ -279,6 +283,8 @@ function DiffHeader(props: {
 
   // A conflicted file already says so in its status badge
   const origin = sel.commit ? `commit ${sel.commit.slice(0, 7)}` : props.conflicted ? null : sel.staged ? 'Staged' : 'Unstaged'
+  // History / blame of this file (for a commit file: the blame at that commit)
+  const fileRef: FileRef = { path: sel.path, commit: sel.commit, status }
 
   return (
     <div className="dv-header">
@@ -304,7 +310,7 @@ function DiffHeader(props: {
           <button
             className="gd-mini-btn red"
             disabled={busy}
-            title="Quitar el archivo completo del stage"
+            title="Remove the whole file from the stage"
             onClick={() => void run('Unstage', (r) => git.unstage(r, paths))}
           >
             Unstage File
@@ -313,22 +319,42 @@ function DiffHeader(props: {
           <button
             className="gd-mini-btn green"
             disabled={busy}
-            title={props.conflicted ? 'Marcar el conflicto como resuelto' : 'Añadir el archivo completo al stage'}
+            title={props.conflicted ? 'Mark the conflict as resolved' : 'Add the whole file to the stage'}
             onClick={() => void run('Stage', (r) => git.stage(r, [sel.path]))}
           >
-            {props.conflicted ? 'Marcar como resuelto' : 'Stage File'}
+            {props.conflicted ? 'Mark as resolved' : 'Stage File'}
           </button>
         ))}
+      {hasHistory(fileRef) && (
+        <>
+          <button
+            className="gd-icon-btn"
+            title="File History"
+            aria-label="File History"
+            onClick={() => openFileHistory(fileRef)}
+          >
+            <History size={15} />
+          </button>
+          <button
+            className="gd-icon-btn"
+            title={sel.commit ? `Blame at commit ${sel.commit.slice(0, 7)}` : 'Blame'}
+            aria-label="Blame"
+            onClick={() => openBlame(fileRef)}
+          >
+            <UserSearch size={15} />
+          </button>
+        </>
+      )}
       <Segmented
         value={props.mode}
         onChange={props.setMode}
         options={[
-          { value: 'hunk', label: 'Hunk', icon: <Rows3 size={12} />, title: 'Solo los bloques modificados' },
-          { value: 'inline', label: 'Inline', icon: <AlignJustify size={12} />, title: 'Vista unificada' },
-          { value: 'split', label: 'Split', icon: <Columns2 size={12} />, title: 'Antes y después, lado a lado' }
+          { value: 'hunk', label: 'Hunk', icon: <Rows3 size={12} />, title: 'Only the changed hunks' },
+          { value: 'inline', label: 'Inline', icon: <AlignJustify size={12} />, title: 'Unified view' },
+          { value: 'split', label: 'Split', icon: <Columns2 size={12} />, title: 'Before and after, side by side' }
         ]}
       />
-      <button className="gd-icon-btn" title="Cerrar (Esc)" aria-label="Cerrar" onClick={() => selectFile(null)}>
+      <button className="gd-icon-btn" title="Close (Esc)" aria-label="Close" onClick={() => selectFile(null)}>
         <X size={16} />
       </button>
     </div>
@@ -565,7 +591,7 @@ function GapRow({ row, quiet }: { row: Extract<DiffRow, { kind: 'gap' }>; quiet?
         {!quiet && (
           <>
             <span>
-              ⋯ {row.skipped} {row.skipped === 1 ? 'línea sin cambios' : 'líneas sin cambios'}
+              ⋯ {row.skipped} {row.skipped === 1 ? 'unchanged line' : 'unchanged lines'}
             </span>
             {row.hunk.section && <span className="dv-hunk-section">{row.hunk.section}</span>}
           </>
@@ -617,8 +643,8 @@ function Code({ line, pair }: { line: DiffLine; pair: DiffLine | null }) {
         : segs
           ? segs.map((s, i) => (s.changed ? <mark key={i}>{s.text}</mark> : s.text))
           : text}
-      {cut > 0 && <span className="dv-aside">… +{cut} caracteres</span>}
-      {line.noNewline && <span className="dv-aside">⊘ sin salto de línea al final del archivo</span>}
+      {cut > 0 && <span className="dv-aside">… +{cut} characters</span>}
+      {line.noNewline && <span className="dv-aside">⊘ no newline at end of file</span>}
     </span>
   )
 }

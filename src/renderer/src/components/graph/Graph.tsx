@@ -10,13 +10,14 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode
 } from 'react'
-import { GitCommitHorizontal, LoaderCircle } from 'lucide-react'
+import { GitCommitHorizontal, LoaderCircle, Search } from 'lucide-react'
 import type { Commit, Status } from '@shared/types'
 import { useStore, WIP } from '../../store'
 import { layoutGraph, sameTopology, type GraphLayout, type LayoutCommit } from './layout'
 import { graphWidth } from './geometry'
 import { buildLabels } from './refLabels'
 import { CommitRow, WipRow, type WipCounts } from './GraphRow'
+import { useGraphSearch } from '../history/GraphSearch'
 import './graph.css'
 
 const HEAD_H = 26
@@ -151,6 +152,9 @@ export function Graph() {
   )
 
   const total = items.length
+
+  // --- search (Cmd/Ctrl+F) ----------------------------------------------------
+  const search = useGraphSearch({ repo: activeRepo, commits, index: layout.index, selected, hasMore, scrollRef })
 
   // --- columns ------------------------------------------------------------
   const graphW = cols.graph ?? clamp(graphWidth(layout.width), 66, 300)
@@ -306,6 +310,17 @@ export function Graph() {
       continue
     }
     const commit = commits[i - offset]
+    if (search.hits.has(commit.hash)) {
+      // tint behind the (memoised) row; the matched text itself is painted by the search
+      rows.push(
+        <div
+          key={`hit:${commit.hash}`}
+          className={`g-search-hit${selected === commit.hash ? ' current' : ''}`}
+          style={{ top: i * rowH }}
+          aria-hidden="true"
+        />
+      )
+    }
     rows.push(
       <CommitRow
         key={commit.hash}
@@ -321,44 +336,59 @@ export function Graph() {
 
   const empty = commits.length === 0
   const rootClass =
-    'graph' + (showAuthor ? '' : ' no-author') + (showDate ? '' : ' no-date') + (showSha ? '' : ' no-sha')
+    'graph' +
+    (showAuthor ? '' : ' no-author') +
+    (showDate ? '' : ' no-date') +
+    (showSha ? '' : ' no-sha') +
+    (search.active ? ' searching' : '')
+  const searchKey = window.bridge.platform === 'darwin' ? '⌘F' : 'Ctrl+F'
 
   return (
     <div className={rootClass} style={{ '--g-cols': template } as CSSProperties}>
+      {search.bar}
       <div
         ref={scrollRef}
         className="g-scroll"
         tabIndex={0}
         role="grid"
-        aria-label="Historial de commits"
+        aria-label="Commit history"
         aria-rowcount={total}
         onScroll={onScroll}
         onKeyDown={onKeyDown}
       >
         <div className="g-head" role="row">
           <div className="g-hc">
-            <span>Rama / Etiqueta</span>
+            <span>Branch / Tag</span>
             <span className="g-rs r" onMouseDown={startResize('refs', 1)} />
           </div>
           <div className="g-hc">
-            <span>Grafo</span>
+            <span>Graph</span>
             <span
               className="g-rs r"
-              title="Arrastra para redimensionar · doble clic para ajustar al grafo"
+              title="Drag to resize · double-click to fit the graph"
               onMouseDown={startResize('graph', 1)}
               onDoubleClick={autoGraph}
             />
           </div>
           <div className="g-hc">
-            <span>Mensaje del commit</span>
+            <span>Commit message</span>
+            <button
+              type="button"
+              className={`g-search-open${search.active ? ' on' : ''}`}
+              title={`Search commits (${searchKey})`}
+              aria-label="Search commits"
+              onClick={search.open}
+            >
+              <Search size={13} />
+            </button>
           </div>
           <div className="g-hc g-c-author">
             <span className="g-rs l" onMouseDown={startResize('author', -1)} />
-            <span>Autor</span>
+            <span>Author</span>
           </div>
           <div className="g-hc g-c-date">
             <span className="g-rs l" onMouseDown={startResize('date', -1)} />
-            <span>Fecha</span>
+            <span>Commit date / time</span>
           </div>
           <div className="g-hc g-c-sha">
             <span className="g-rs l" onMouseDown={startResize('sha', -1)} />
@@ -373,7 +403,7 @@ export function Graph() {
         {hasMore && !empty && (
           <div className="g-more-row">
             <LoaderCircle size={13} className="g-spin" />
-            Cargando más commits…
+            Loading more commits…
           </div>
         )}
 
@@ -382,16 +412,16 @@ export function Graph() {
             {loading ? (
               <>
                 <LoaderCircle size={22} className="g-spin" />
-                <p>Cargando historial…</p>
+                <p>Loading history…</p>
               </>
             ) : (
               <>
                 <GitCommitHorizontal size={34} strokeWidth={1.5} />
-                <h4>Este repositorio aún no tiene commits</h4>
+                <h4>This repository has no commits yet</h4>
                 <p>
                   {wip
-                    ? 'Prepara tus cambios y crea el primer commit: aparecerá aquí.'
-                    : 'Añade archivos y crea el primer commit: el historial aparecerá aquí.'}
+                    ? 'Stage your changes and create the first commit: it will show up here.'
+                    : 'Add files and create the first commit: the history will show up here.'}
                 </p>
               </>
             )}

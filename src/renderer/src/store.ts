@@ -101,7 +101,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const repo = await git.resolveRepo(path)
       if (!repo) {
-        toast(`"${path}" no es un repositorio Git`, 'error')
+        toast(`"${path}" is not a Git repository`, 'error')
         return
       }
       const tab = { path: repo, name: baseName(repo) }
@@ -141,10 +141,22 @@ export const useStore = create<AppState>((set, get) => ({
       selectedFile: null,
       view: { kind: 'graph' }
     })
-    if (path) {
-      git.watch(path).catch(() => {})
-      get().refresh()
-    }
+    if (!path) return
+    // The folder may have stopped being a repository (deleted .git, moved) since
+    // the tab was saved; git would then act on a parent repo containing it.
+    git.resolveRepo(path).then(
+      (top) => {
+        if (get().activeRepo !== path) return
+        if (top !== path) {
+          toast(`"${path}" is no longer the root of a Git repository. Closing its tab.`, 'error')
+          get().closeTab(path)
+          return
+        }
+        git.watch(path).catch(() => {})
+        get().refresh()
+      },
+      (e) => get().activeRepo === path && toast(errText(e), 'error')
+    )
   },
 
   async refresh() {
@@ -216,7 +228,10 @@ export const useStore = create<AppState>((set, get) => ({
       if (successMsg) toast(successMsg, 'success')
     } catch (e) {
       ok = false
-      toast(`${label}: ${errText(e)}`, 'error')
+      const text = errText(e)
+      // Cancelled by the user: say so, but it is not a failure
+      if (/^Operation cancelled/i.test(text)) toast(`${label} cancelled`, 'info')
+      else toast(`${label}: ${text}`, 'error')
     } finally {
       set({ busy: null })
     }

@@ -1,0 +1,190 @@
+/* Blame view and file history view (centre area). Diff rows reuse the dv-*
+   styles of the diff viewer; everything else is prefixed hv-. */
+
+.hv {
+  flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column;
+  background: var(--bg-1); outline: none;
+  --hv-gutter: 284px;
+  --hv-cold: #2c4468;
+  --hv-hot: #f0883e;
+}
+
+/* ---- header ---- */
+.hv-header {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 12px;
+  background: var(--bg-3); border-bottom: 1px solid var(--border);
+}
+.hv-header-icon { flex: none; color: var(--accent); }
+.hv-header-kind {
+  flex: none; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+}
+.hv-header-info { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-faint); font-size: 11px; }
+.hv-path {
+  min-width: 60px; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  direction: rtl; text-align: left; user-select: text; font-size: 13px;
+}
+/* rtl only to put the ellipsis on the left; the text itself stays one ltr run */
+.hv-path-inner { direction: ltr; unicode-bidi: isolate; }
+.hv-path-dir { color: var(--text-dim); }
+.hv-path-name { color: #fff; font-weight: 600; }
+.hv-badge {
+  flex: none; padding: 1px 7px; border-radius: 9px; font-size: 11px; white-space: nowrap;
+  background: var(--bg-1); border: 1px solid var(--border-soft); color: var(--text-dim);
+}
+.hv-rev { font-family: var(--mono); color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.hv-spring { flex: 1; min-width: 4px; }
+.hv-dim { color: var(--text-faint); }
+.hv-sha {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px;
+  font: 12px var(--mono); color: var(--accent); background: var(--bg-1); border: 1px solid var(--border-soft);
+}
+.hv-sha:hover { border-color: var(--accent); color: var(--accent-hover); }
+.hv-sha svg { opacity: .7; }
+
+.hv-spin { animation: hv-spin .9s linear infinite; }
+@keyframes hv-spin { to { transform: rotate(360deg); } }
+
+/* ---- notices ---- */
+.hv-notice {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 24px; color: var(--text-faint); text-align: center;
+}
+.hv-notice-title { color: var(--text-dim); font-size: 14px; }
+.hv-notice-detail { max-width: 520px; font-size: 12px; white-space: pre-wrap; user-select: text; }
+.hv-notice.error .hv-notice-title { color: var(--red); }
+
+/* ======================================================================
+   File history
+   ====================================================================== */
+.hv-split { flex: 1; min-height: 0; display: flex; }
+.hv-list-pane { flex: none; min-width: 0; display: flex; flex-direction: column; background: var(--bg-2); }
+.hv-resizer { flex: none; width: 4px; cursor: col-resize; background: var(--border); }
+.hv-resizer:hover { background: var(--accent); }
+.hv-diff-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.hv-list { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.hv-list-body { position: relative; }
+.hv-item {
+  position: absolute; left: 0; right: 0; height: 46px; padding: 6px 10px 0 8px;
+  display: flex; flex-direction: column; gap: 2px; cursor: default;
+  border-bottom: 1px solid var(--border); border-left: 3px solid transparent;
+}
+.hv-item.renamed { height: 64px; }
+.hv-item:hover { background: var(--bg-hover); }
+.hv-item.selected { background: var(--bg-selected); border-left-color: var(--accent); }
+.hv-item-top { display: flex; align-items: center; gap: 6px; min-width: 0; height: 16px; }
+.hv-item-subject {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text); font-size: 12.5px; line-height: 16px;
+}
+.hv-item.selected .hv-item-subject { color: #fff; }
+.hv-item-meta {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; padding-left: 22px;
+  color: var(--text-dim); font-size: 11px; line-height: 16px; white-space: nowrap;
+}
+.hv-item-author { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hv-item-date { flex: 1 0 auto; color: var(--text-faint); }
+.hv-item.selected .hv-item-date { color: var(--text-dim); }
+.hv-item-sha { flex: none; font: 11px var(--mono); color: var(--text-faint); }
+.hv-item.selected .hv-item-sha { color: var(--accent); }
+.hv-item-rename {
+  display: flex; align-items: baseline; gap: 6px; min-width: 0; padding-left: 22px;
+  font-size: 11px; line-height: 16px; white-space: nowrap;
+}
+.hv-item-rename-label { flex: none; color: var(--fs-blue, #58a6ff); }
+.hv-item-rename-path {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left;
+  color: var(--text-dim); font-family: var(--mono); unicode-bidi: plaintext;
+}
+.hv-list-more {
+  display: flex; align-items: center; gap: 8px; height: 30px; padding-left: 12px;
+  color: var(--text-faint); font-size: 12px;
+}
+
+.hv-diff { flex: 1; min-height: 0; }
+.hv-diff-head {
+  flex: none; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 8px 4px 12px;
+  background: var(--bg-2); border-bottom: 1px solid var(--border);
+}
+.hv-diff-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hv-diff-subject {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-weight: 600; font-size: 12.5px;
+  user-select: text;
+}
+.hv-diff-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-size: 11px; }
+
+/* ======================================================================
+   Blame
+   ====================================================================== */
+.hv-bl-scroll {
+  flex: 1; min-height: 0; overflow: auto; position: relative; outline: none;
+  font: 12px/20px var(--mono); tab-size: 4;
+}
+.hv-bl-spacer { position: relative; min-height: 100%; }
+.hv-bl-window { position: absolute; left: 0; right: 0; }
+.hv-bl-row { display: flex; height: 20px; white-space: pre; color: var(--text); }
+
+.hv-bl-left {
+  position: sticky; left: 0; z-index: 1; flex: none; display: flex;
+  background: var(--bg-1); border-right: 1px solid var(--border); user-select: none;
+}
+.hv-bl-gutter {
+  flex: none; width: var(--hv-gutter); display: flex; align-items: center; gap: 8px; padding-right: 8px;
+  background: var(--bg-2); color: var(--text-dim); font: 11px/20px var(--font); cursor: pointer; overflow: hidden;
+}
+.hv-bl-row.odd .hv-bl-gutter { background: #202020; }
+/* a thin line where one commit's block ends and the next begins */
+.hv-bl-row.first .hv-bl-gutter { box-shadow: inset 0 1px 0 var(--border-soft); }
+/* age: from cold (the oldest commit of the file) to hot (the newest) */
+.hv-bl-bar {
+  flex: none; align-self: stretch; width: 4px;
+  background: color-mix(in oklab, var(--hv-hot) var(--hv-age, 0%), var(--hv-cold));
+}
+.hv-bl-author { flex: 0 0 92px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.hv-bl-summary { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hv-bl-date { flex: none; color: var(--text-faint); white-space: nowrap; }
+.hv-bl-num {
+  flex: none; width: calc(var(--hv-digits) * 1ch + 16px); padding: 0 8px; text-align: right;
+  background: #1f2229; color: var(--text-faint);
+}
+.hv-bl-code { flex: 1; padding: 0 16px 0 10px; user-select: text; cursor: text; }
+.hv-bl-code::selection, .hv-bl-code *::selection { background: rgba(25, 181, 200, .4); }
+.hv-bl-aside { margin-left: 12px; color: var(--text-faint); font-style: italic; user-select: none; }
+
+/* every line of the commit under the pointer */
+.hv-bl-row.hl { background: rgba(255, 255, 255, .045); }
+.hv-bl-row.hl .hv-bl-gutter { background: #30333b; color: var(--text); }
+.hv-bl-row.hl .hv-bl-num { background: #2b2f38; color: var(--text-dim); }
+/* the commit whose details are open */
+.hv-bl-row.sel { background: rgba(27, 43, 85, .55); }
+.hv-bl-row.sel .hv-bl-gutter { background: var(--bg-selected); color: #fff; }
+.hv-bl-row.sel .hv-bl-author, .hv-bl-row.sel .hv-bl-date { color: #dbe6ff; }
+.hv-bl-row.sel .hv-bl-num { background: #1d2947; color: var(--text); }
+/* lines that are not committed yet */
+.hv-bl-row.pending .hv-bl-bar {
+  background: repeating-linear-gradient(180deg, var(--yellow) 0 3px, transparent 3px 6px);
+}
+.hv-bl-row.pending .hv-bl-summary { color: var(--yellow); font-style: italic; }
+.hv-bl-row.pending:not(.sel):not(.hl) { background: rgba(217, 165, 32, .05); }
+
+/* ---- details of the clicked block ---- */
+.hv-bl-detail {
+  flex: none; display: flex; align-items: flex-start; gap: 12px; max-height: 40%; padding: 10px 8px 10px 12px;
+  background: var(--bg-2); border-top: 1px solid var(--border); box-shadow: 0 -6px 16px rgba(0, 0, 0, .35);
+}
+.hv-bl-avatar {
+  flex: none; width: 34px; height: 34px; border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.hv-bl-detail-main { flex: 1; min-width: 0; max-height: 100%; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.hv-bl-detail-subject {
+  color: #fff; font-size: 13.5px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; user-select: text; cursor: text;
+}
+.hv-bl-detail-body {
+  max-height: 96px; overflow-y: auto; color: var(--text); font-size: 12.5px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; cursor: text;
+}
+.hv-bl-detail-meta { display: flex; flex-wrap: wrap; column-gap: 12px; color: var(--text-dim); font-size: 11.5px; }
+.hv-bl-detail-author { color: var(--text); font-weight: 600; user-select: text; }
+.hv-bl-detail-actions { flex: 0 1 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.hv-bl-detail.pending .hv-bl-detail-subject { color: var(--yellow); }

@@ -2,6 +2,7 @@ import { Plus, X } from 'lucide-react'
 import { useStore, type RepoTab } from '../../store'
 import { git } from '../../lib/git'
 import { showContextMenu } from '../ui/overlays'
+import { ProfileButton } from '../hosting/ProfileButton'
 import './tabs.css'
 
 export function TabBar() {
@@ -38,17 +39,17 @@ export function TabBar() {
             }}
             onContextMenu={(e) =>
               showContextMenu(e, [
-                { label: 'Cerrar pestaña', onClick: () => closeTab(t.path) },
-                { label: 'Cerrar las demás', onClick: () => closeOthers(t), disabled: tabs.length < 2 },
+                { label: 'Close tab', onClick: () => closeTab(t.path) },
+                { label: 'Close other tabs', onClick: () => closeOthers(t), disabled: tabs.length < 2 },
                 { separator: true },
-                { label: 'Mostrar en la carpeta', onClick: () => void git.reveal(t.path).catch(() => {}) }
+                { label: 'Reveal in file manager', onClick: () => void git.reveal(t.path).catch(() => {}) }
               ])
             }
           >
             <span className="tb-tab-name">{t.name}</span>
             <button
               className="tb-close"
-              title="Cerrar pestaña"
+              title="Close tab"
               onClick={(e) => {
                 e.stopPropagation()
                 closeTab(t.path)
@@ -60,12 +61,14 @@ export function TabBar() {
         ))}
         <button
           className={`tb-new no-drag${activeRepo === null ? ' active' : ''}`}
-          title="Nueva pestaña"
+          title="New tab"
           onClick={() => activate(null)}
         >
           <Plus size={15} />
         </button>
       </div>
+      {/* right end of the bar; the button itself is a no-drag element */}
+      <ProfileButton />
     </div>
   )
 }

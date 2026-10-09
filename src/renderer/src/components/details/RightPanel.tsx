@@ -19,7 +19,7 @@ export function RightPanel() {
   if (selected !== null && selected !== WIP) {
     content = <CommitPanel repo={repo} hash={selected} />
   } else if (!status) {
-    content = <div className="rp-empty rp-loading">Cargando…</div>
+    content = <div className="rp-empty rp-loading">Loading…</div>
   } else if (selected === WIP || dirty || status.inProgress) {
     // Nothing selected but there is work in progress: the staging area is the default
     content = <WipPanel key={repo} repo={repo} status={status} />
@@ -27,10 +27,10 @@ export function RightPanel() {
     content = (
       <div className="rp-empty">
         <CircleCheckBig size={40} strokeWidth={1.25} />
-        <div className="rp-empty-title">Árbol de trabajo limpio</div>
+        <div className="rp-empty-title">Working tree clean</div>
         <div className="rp-empty-text">
-          No hay cambios pendientes{status.branch ? ` en ${status.branch}` : ''}. Selecciona un commit del grafo para ver
-          sus detalles y los archivos que modifica.
+          No pending changes{status.branch ? ` on ${status.branch}` : ''}. Select a commit in the graph to see its
+          details and the files it changes.
         </div>
       </div>
     )

@@ -55,7 +55,7 @@ export function formDialog(opts: {
 }): Promise<Record<string, string> | null> {
   return new Promise((resolve) =>
     useOverlays.setState({
-      dialog: { ...opts, confirmLabel: opts.confirmLabel ?? 'Aceptar', resolve }
+      dialog: { ...opts, confirmLabel: opts.confirmLabel ?? 'OK', resolve }
     })
   )
 }
@@ -162,7 +162,21 @@ function Dialog() {
       <form
         className="modal"
         onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.key === 'Escape' && done(null)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') return done(null)
+          if (e.key !== 'Tab') return
+          // Keep keyboard focus inside the dialog: nothing behind it may be operated
+          const items = [...e.currentTarget.querySelectorAll<HTMLElement>('input, button')]
+          const first = items[0]
+          const last = items[items.length - 1]
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault()
+            last?.focus()
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault()
+            first?.focus()
+          }
+        }}
         onSubmit={(e) => {
           e.preventDefault()
           done(values)
@@ -183,10 +197,10 @@ function Dialog() {
           </div>
         ))}
         <div className="modal-actions">
-          <button type="button" className="btn" onClick={() => done(null)}>
-            Cancelar
+          <button type="button" className="btn" autoFocus={dialog.fields.length === 0 && !!dialog.danger} onClick={() => done(null)}>
+            Cancel
           </button>
-          <button type="submit" autoFocus={dialog.fields.length === 0} className={`btn ${dialog.danger ? 'btn-danger' : 'btn-primary'}`}>
+          <button type="submit" autoFocus={dialog.fields.length === 0 && !dialog.danger} className={`btn ${dialog.danger ? 'btn-danger' : 'btn-primary'}`}>
             {dialog.confirmLabel}
           </button>
         </div>

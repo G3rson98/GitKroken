@@ -9,6 +9,7 @@ import { showContextMenu, toast } from '../ui/overlays'
 import { FILE_VIEWS, FILE_VIEW_KEY, FileList, type FileViewMode } from './FileList'
 import { Segmented, copyText, plural, readPref, writePref } from './common'
 import { hueOf, initials, relativeTime } from './commitMessage'
+import { openBlame, openFileHistory } from '../history/entry'
 
 const errText = (e: unknown) =>
   (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
@@ -23,7 +24,7 @@ function remember(key: string, details: CommitDetails): void {
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string)
 }
 
-const dateFmt = new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' })
+const dateFmt = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' })
 
 const REF_ICON = { head: GitBranch, remote: Cloud, tag: Tag, stash: Archive } as const
 
@@ -73,11 +74,13 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
 
   const menu = (e: MouseEvent, file: FileChange) =>
     showContextMenu(e, [
-      { label: 'Ver cambios', onClick: () => selectFile({ path: file.path, oldPath: file.oldPath, commit: hash }) },
+      { label: 'View changes', onClick: () => selectFile({ path: file.path, oldPath: file.oldPath, commit: hash }) },
+      { label: 'File History', onClick: () => openFileHistory({ path: file.path, commit: hash, status: file.status }) },
+      { label: 'Blame', onClick: () => openBlame({ path: file.path, commit: hash, status: file.status }) },
       { separator: true },
-      { label: 'Copiar ruta', onClick: () => copyText(file.path, 'Ruta') },
+      { label: 'Copy path', onClick: () => copyText(file.path, 'Path') },
       {
-        label: window.bridge.platform === 'darwin' ? 'Mostrar en Finder' : 'Mostrar en el gestor de archivos',
+        label: window.bridge.platform === 'darwin' ? 'Reveal in Finder' : 'Show in file manager',
         disabled: file.status === 'deleted',
         onClick: () => {
           git.reveal(`${repo}/${file.path}`).catch((err) => toast(errText(err), 'error'))
@@ -89,7 +92,7 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
     <div className="rp-commit">
       <div className="rp-head">
         <span className="rp-head-label">{commit?.isStash ? 'stash' : 'commit'}</span>
-        <button className="rp-sha" title="Copiar el SHA completo" onClick={() => copyText(hash, 'SHA')}>
+        <button className="rp-sha" title="Copy the full SHA" onClick={() => copyText(hash, 'SHA')}>
           {hash.slice(0, 7)}
           <Copy size={11} />
         </button>
@@ -99,34 +102,34 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
       {commit ? (
         <CommitMeta commit={commit} refs={refs.filter((r) => r.hash === hash)} onParent={select} />
       ) : (
-        !current.error && <div className="rp-loading">Cargando commit…</div>
+        !current.error && <div className="rp-loading">Loading commit…</div>
       )}
 
       <div className="rp-files-head">
         <span className="rp-section-title">
-          {files ? plural(files.length, 'archivo modificado', 'archivos modificados') : 'Archivos modificados'}
+          {files ? plural(files.length, 'file changed', 'files changed') : 'Files changed'}
         </span>
         <span className="rp-spring" />
         <Segmented
           value={view}
           onChange={setView}
           options={[
-            { value: 'path', label: 'Path', icon: <List size={12} />, title: 'Lista plana de rutas' },
-            { value: 'tree', label: 'Tree', icon: <FolderTree size={12} />, title: 'Árbol de carpetas' }
+            { value: 'path', label: 'Path', icon: <List size={12} />, title: 'Flat list of paths' },
+            { value: 'tree', label: 'Tree', icon: <FolderTree size={12} />, title: 'Folder tree' }
           ]}
         />
       </div>
       <div className="rp-files">
         {current.error ? (
-          <div className="rp-error">No se pudieron cargar los detalles: {current.error}</div>
+          <div className="rp-error">Could not load the details: {current.error}</div>
         ) : !files ? (
-          <div className="rp-loading">Cargando archivos…</div>
+          <div className="rp-loading">Loading files…</div>
         ) : (
           <FileList
             key={key}
             files={files}
             view={view}
-            emptyText="Este commit no modifica ningún archivo"
+            emptyText="This commit does not change any file"
             isSelected={(f) => selectedFile?.commit === hash && selectedFile.path === f.path}
             onOpen={(f) => selectFile({ path: f.path, oldPath: f.oldPath, commit: hash })}
             onContextMenu={menu}
@@ -153,7 +156,7 @@ function CommitMeta(props: { commit: Commit; refs: Ref[]; onParent: (hash: strin
               <span
                 key={r.type + r.name}
                 className={`rp-ref rp-ref-${r.type}${r.isCurrent ? ' current' : ''}`}
-                title={r.isCurrent ? `${r.name} (rama actual)` : r.name}
+                title={r.isCurrent ? `${r.name} (current branch)` : r.name}
               >
                 <Icon size={11} />
                 {r.name}
@@ -176,17 +179,17 @@ function CommitMeta(props: { commit: Commit; refs: Ref[]; onParent: (hash: strin
             {commit.author}
           </div>
           <div className="rp-author-date">
-            {dateFmt.format(new Date(commit.date * 1000))} · {relativeTime(commit.date, Date.now() / 1000)}
+            {dateFmt.format(new Date(commit.date * 1000))} · {relativeTime(commit.date, Date.now() / 1000, 'en')}
           </div>
         </div>
       </div>
 
       <div className="rp-parents">
         <span className="rp-parents-label">
-          {commit.parents.length === 0 ? 'Commit raíz (sin padres)' : commit.parents.length === 1 ? 'Padre:' : 'Padres:'}
+          {commit.parents.length === 0 ? 'Root commit (no parents)' : commit.parents.length === 1 ? 'Parent:' : 'Parents:'}
         </span>
         {commit.parents.map((p) => (
-          <button key={p} className="rp-parent" title={`Ir al commit ${p}`} onClick={() => props.onParent(p)}>
+          <button key={p} className="rp-parent" title={`Go to commit ${p}`} onClick={() => props.onParent(p)}>
             {p.slice(0, 7)}
           </button>
         ))}

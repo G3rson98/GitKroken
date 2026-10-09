@@ -21,6 +21,7 @@ import { checkoutRef, createBranchAtHead, shortSha } from '../toolbar/actions'
 import { addRemote, localBranchMenu, remoteBranchMenu, remoteMenu, stashMenu, tagMenu } from './menus'
 import { buildTree, groupRemotes, stashIndex, useCollapsed, type TreeLeaf, type TreeNode } from './tree'
 import { Chevron, Section } from './Section'
+import { fullRefName } from '../../lib/refs'
 import { ExtraSections } from '../extras/Sections'
 import { HostingSections } from '../hosting/Sections'
 import './sidebar.css'
@@ -105,7 +106,7 @@ function Paged<T>(props: { items: T[]; render: (item: T, index: number) => React
       {props.items.slice(0, limit).map(props.render)}
       {rest > 0 && (
         <button className="sb-more" onClick={() => setLimit(limit + PAGE)}>
-          Mostrar {Math.min(rest, PAGE)} más ({rest} restantes)
+          Show {Math.min(rest, PAGE)} more ({rest} remaining)
         </button>
       )}
     </>
@@ -184,7 +185,7 @@ export function Sidebar() {
         depth={depth}
         icon={ref.isCurrent ? <Check size={14} className="sb-check" /> : <GitBranch size={14} />}
         label={leaf.name}
-        title={[ref.name, ref.upstream ? `→ ${ref.upstream}` : '', ref.isCurrent ? '(rama actual)' : '']
+        title={[ref.name, ref.upstream ? `→ ${ref.upstream}` : '', ref.isCurrent ? '(current branch)' : '']
           .filter(Boolean)
           .join(' ')}
         meta={<AheadBehind ahead={ref.ahead} behind={ref.behind} />}
@@ -192,7 +193,7 @@ export function Sidebar() {
         current={ref.isCurrent}
         onClick={() => pick(ref)}
         onDoubleClick={() => {
-          if (!ref.isCurrent) void checkoutRef(ref.name)
+          if (!ref.isCurrent) void checkoutRef(fullRefName(ref))
         }}
         onContextMenu={(e) => {
           pick(ref)
@@ -213,7 +214,7 @@ export function Sidebar() {
         title={ref.name}
         active={isActive(ref)}
         onClick={() => pick(ref)}
-        onDoubleClick={() => void checkoutRef(ref.name)}
+        onDoubleClick={() => void checkoutRef(fullRefName(ref))}
         onContextMenu={(e) => {
           pick(ref)
           showContextMenu(e, remoteBranchMenu(ref, remotes))
@@ -222,7 +223,7 @@ export function Sidebar() {
     )
   }
 
-  const empty = (text: string) => <div className="sb-empty">{filtering ? 'Sin coincidencias' : text}</div>
+  const empty = (text: string) => <div className="sb-empty">{filtering ? 'No matches' : text}</div>
 
   return (
     <div className="sb">
@@ -230,7 +231,7 @@ export function Sidebar() {
         <Search size={14} className="sb-filter-icon" />
         <input
           spellCheck={false}
-          placeholder="Filtrar ramas, stashes y tags"
+          placeholder="Filter branches, stashes and tags"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => {
@@ -238,7 +239,7 @@ export function Sidebar() {
           }}
         />
         {filter && (
-          <button className="sb-filter-clear" title="Limpiar filtro" onClick={() => setFilter('')}>
+          <button className="sb-filter-clear" title="Clear filter" onClick={() => setFilter('')}>
             <X size={13} />
           </button>
         )}
@@ -252,9 +253,9 @@ export function Sidebar() {
           open={isOpen('section:local')}
           onToggle={() => toggle('section:local')}
           onAdd={() => void createBranchAtHead()}
-          addTitle="Crear rama"
+          addTitle="Create branch"
         >
-          {model.localCount === 0 && empty('No hay ramas locales')}
+          {model.localCount === 0 && empty('No local branches')}
           <Tree nodes={model.localTree} depth={0} isOpen={isOpen} toggle={toggle} renderLeaf={renderLocal} />
         </Section>
 
@@ -265,9 +266,9 @@ export function Sidebar() {
           open={isOpen('section:remote')}
           onToggle={() => toggle('section:remote')}
           onAdd={() => void addRemote()}
-          addTitle="Añadir remoto"
+          addTitle="Add remote"
         >
-          {model.groups.length === 0 && empty('No hay remotos')}
+          {model.groups.length === 0 && empty('No remotes')}
           {model.groups.map((g) => {
             const key = `remote:${g.name}`
             const open = isOpen(key)
@@ -302,7 +303,7 @@ export function Sidebar() {
           open={isOpen('section:stashes')}
           onToggle={() => toggle('section:stashes')}
         >
-          {model.stashes.length === 0 && empty('No hay stashes')}
+          {model.stashes.length === 0 && empty('No stashes')}
           <Paged
             items={model.stashes}
             render={({ ref, index }) => (
@@ -330,7 +331,7 @@ export function Sidebar() {
           open={isOpen('section:tags')}
           onToggle={() => toggle('section:tags')}
         >
-          {model.tags.length === 0 && empty('No hay tags')}
+          {model.tags.length === 0 && empty('No tags')}
           <Paged
             items={model.tags}
             render={(ref) => (

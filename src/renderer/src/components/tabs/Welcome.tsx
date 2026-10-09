@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { CloudDownload, FolderGit2, FolderOpen, FolderPlus, GitBranch, LoaderCircle } from 'lucide-react'
+import { CloudDownload, FolderGit2, FolderOpen, FolderPlus, GitBranch, LoaderCircle, X } from 'lucide-react'
 import { useStore } from '../../store'
 import { git } from '../../lib/git'
 import { toast } from '../ui/overlays'
-import { errText, openRepoFromDisk } from '../toolbar/actions'
+import { CANCELLED, errText, openRepoFromDisk } from '../toolbar/actions'
 import './tabs.css'
 
 const CLONE_DIR_KEY = 'gitkroken.cloneDir'
@@ -35,11 +35,14 @@ export function Welcome() {
   const [dest, setDest] = useState(readCloneDir)
   /** Label of the long operation in flight (clone / init), if any */
   const [working, setWorking] = useState<string | null>(null)
+  /** Destination folder of the clone in flight: what `git.cancel` is keyed by */
+  const [cloning, setCloning] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const locked = working !== null
 
   const pickDest = async () => {
     try {
-      const dir = await git.pickDirectory('Carpeta de destino')
+      const dir = await git.pickDirectory('Destination folder')
       if (dir) setDest(dir)
     } catch (e) {
       toast(errText(e), 'error')
@@ -50,32 +53,50 @@ export function Welcome() {
     const u = url.trim()
     const d = dest.trim()
     if (!u || !d || locked) return
-    setWorking(`Clonando ${repoNameFromUrl(u) || 'repositorio'}…`)
+    setWorking(`Cloning ${repoNameFromUrl(u) || 'repository'}…`)
+    setCloning(d)
     try {
       const repo = await git.clone(u, d)
       localStorage.setItem(CLONE_DIR_KEY, d)
-      toast('Repositorio clonado', 'success')
+      toast('Repository cloned', 'success')
       setUrl('')
       setCloneOpen(false)
       await openRepo(repo)
     } catch (e) {
-      toast(`Clonar: ${errText(e)}`, 'error')
+      const message = errText(e)
+      // Cancelled by the user: nothing went wrong, and nothing was left on disk.
+      if (message === CANCELLED) toast('Clone cancelled')
+      else toast(`Clone: ${message}`, 'error')
     } finally {
       setWorking(null)
+      setCloning(null)
+      setCancelling(false)
+    }
+  }
+
+  const cancelClone = async () => {
+    if (!cloning || cancelling) return
+    setCancelling(true)
+    try {
+      // False when the clone finished (or failed) a moment ago: nothing to do then.
+      if (!(await git.cancel(cloning))) setCancelling(false)
+    } catch (e) {
+      setCancelling(false)
+      toast(`Cancel: ${errText(e)}`, 'error')
     }
   }
 
   const doInit = async () => {
     if (locked) return
     try {
-      const dir = await git.pickDirectory('Carpeta donde iniciar el repositorio')
+      const dir = await git.pickDirectory('Folder to initialize the repository in')
       if (!dir) return
-      setWorking('Iniciando repositorio…')
+      setWorking('Initializing repository…')
       const repo = await git.init(dir)
-      toast('Repositorio iniciado', 'success')
+      toast('Repository initialized', 'success')
       await openRepo(repo || dir)
     } catch (e) {
-      toast(`Iniciar repositorio: ${errText(e)}`, 'error')
+      toast(`Init: ${errText(e)}`, 'error')
     } finally {
       setWorking(null)
     }
@@ -92,13 +113,13 @@ export function Welcome() {
         <h1 className="wl-title">
           Git<span>Kroken</span>
         </h1>
-        <p className="wl-sub">Abre, clona o inicia un repositorio para empezar.</p>
+        <p className="wl-sub">Open, clone or initialize a repository to get started.</p>
 
         <div className="wl-actions">
           <button className="wl-action" disabled={locked} onClick={() => void openRepoFromDisk()}>
             <FolderOpen size={26} />
-            <span className="wl-action-title">Abrir repositorio</span>
-            <span className="wl-action-desc">Elige una carpeta de tu equipo</span>
+            <span className="wl-action-title">Open a repo</span>
+            <span className="wl-action-desc">Choose a folder on this computer</span>
           </button>
           <button
             className={`wl-action${cloneOpen ? ' on' : ''}`}
@@ -106,13 +127,13 @@ export function Welcome() {
             onClick={() => setCloneOpen((v) => !v)}
           >
             <CloudDownload size={26} />
-            <span className="wl-action-title">Clonar</span>
-            <span className="wl-action-desc">Descarga un repositorio remoto</span>
+            <span className="wl-action-title">Clone a repo</span>
+            <span className="wl-action-desc">Download a remote repository</span>
           </button>
           <button className="wl-action" disabled={locked} onClick={() => void doInit()}>
             <FolderPlus size={26} />
-            <span className="wl-action-title">Iniciar repositorio</span>
-            <span className="wl-action-desc">Crea un repositorio nuevo</span>
+            <span className="wl-action-title">Start a local repo</span>
+            <span className="wl-action-desc">Create a new repository</span>
           </button>
         </div>
 
@@ -125,40 +146,53 @@ export function Welcome() {
             }}
           >
             <div className="wl-field">
-              <label htmlFor="wl-clone-url">URL del repositorio</label>
+              <label htmlFor="wl-clone-url">Repository URL</label>
               <input
                 id="wl-clone-url"
                 autoFocus
                 spellCheck={false}
-                placeholder="https://servidor/usuario/repositorio.git"
+                placeholder="https://host/user/repository.git"
                 value={url}
                 disabled={locked}
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
             <div className="wl-field">
-              <label htmlFor="wl-clone-dest">Carpeta de destino</label>
+              <label htmlFor="wl-clone-dest">Destination folder</label>
               <div className="wl-field-row">
                 <input
                   id="wl-clone-dest"
                   spellCheck={false}
-                  placeholder="Selecciona dónde clonar"
+                  placeholder="Choose where to clone"
                   value={dest}
                   disabled={locked}
                   onChange={(e) => setDest(e.target.value)}
                 />
                 <button type="button" className="btn" disabled={locked} onClick={() => void pickDest()}>
-                  Examinar…
+                  Browse…
                 </button>
               </div>
-              {target && <div className="wl-hint" title={target}>Se clonará en {target}</div>}
+              {target && <div className="wl-hint" title={target}>Will be cloned into {target}</div>}
             </div>
             <div className="wl-clone-actions">
-              <button type="button" className="btn" disabled={locked} onClick={() => setCloneOpen(false)}>
-                Cancelar
-              </button>
+              {cloning ? (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  disabled={cancelling}
+                  onClick={() => void cancelClone()}
+                >
+                  <X size={13} />
+                  {cancelling ? 'Cancelling…' : 'Cancel clone'}
+                </button>
+              ) : (
+                <button type="button" className="btn" disabled={locked} onClick={() => setCloneOpen(false)}>
+                  Cancel
+                </button>
+              )}
               <button type="submit" className="btn btn-primary" disabled={locked || !url.trim() || !dest.trim()}>
-                {locked ? 'Clonando…' : 'Clonar repositorio'}
+                {cloning ? 'Cloning…' : 'Clone the repo!'}
               </button>
             </div>
           </form>
@@ -172,9 +206,9 @@ export function Welcome() {
         )}
 
         <div className="wl-recent">
-          <h4>Repositorios recientes</h4>
+          <h4>Recent repositories</h4>
           <div className="wl-recent-list">
-            {recent.length === 0 && <div className="wl-empty">Aún no has abierto ningún repositorio.</div>}
+            {recent.length === 0 && <div className="wl-empty">You have not opened any repository yet.</div>}
             {recent.map((r) => (
               <button
                 key={r.path}
@@ -188,7 +222,7 @@ export function Welcome() {
                   <span className="wl-recent-name">{r.name}</span>
                   <span className="wl-recent-path">{r.path}</span>
                 </span>
-                {tabs.some((t) => t.path === r.path) && <span className="wl-recent-open">abierto</span>}
+                {tabs.some((t) => t.path === r.path) && <span className="wl-recent-open">open</span>}
               </button>
             ))}
           </div>

@@ -1,5 +1,5 @@
 // Commit form at the bottom of the staging area.
-import { useRef, type KeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { Status } from '@shared/types'
 import { WIP, useStore } from '../../store'
 import { git } from '../../lib/git'
@@ -23,7 +23,20 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
   const conflicts = status.conflicted.length
   const canAmend = !!headCommit && !status.inProgress
   // A ticked box only counts while amending is actually possible
-  const amend = draft.amend && canAmend
+  const amend = draft.amend && canAmend && draft.amendHead === status.head
+  // HEAD moved (pull, checkout, a commit made elsewhere) after Amend was ticked:
+  // untick it, or the old commit's message would be applied to another commit
+  useEffect(() => {
+    if (draft.amend && status.head && draft.amendHead !== status.head) {
+      patchDraft(repo, {
+        amend: false,
+        amendHead: undefined,
+        saved: null,
+        summary: draft.saved?.summary ?? '',
+        description: draft.saved?.description ?? ''
+      })
+    }
+  }, [repo, status.head, draft.amend, draft.amendHead, draft.saved])
 
   const action: Action =
     conflicts > 0 ? null : amend ? 'amend' : staged > 0 ? 'commit' : unstaged > 0 ? 'stage-all-commit' : null
@@ -32,22 +45,22 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
 
   const label =
     conflicts > 0
-      ? 'Resuelve los conflictos primero'
+      ? 'Resolve conflicts first'
       : action === 'amend'
         ? staged > 0
-          ? `Amend con cambios en ${plural(staged, 'archivo', 'archivos')}`
-          : 'Amend del mensaje del último commit'
+          ? `Amend with changes to ${plural(staged, 'file', 'files')}`
+          : 'Amend last commit message'
         : action === 'commit'
-          ? `Commit de cambios en ${plural(staged, 'archivo', 'archivos')}`
+          ? `Commit changes to ${plural(staged, 'file', 'files')}`
           : action === 'stage-all-commit'
-            ? 'Stage de todo y commit'
-            : 'Haz stage de cambios para el commit'
+            ? 'Stage all changes and commit'
+            : 'Stage changes to commit'
 
   const hint =
     action !== null && !hasSummary
-      ? 'Escribe un resumen para poder hacer commit'
+      ? 'Type a commit summary to commit'
       : action === 'stage-all-commit'
-        ? `No hay nada en stage: se añadirán ${plural(unstaged, 'archivo', 'archivos')} y se hará commit`
+        ? `Nothing is staged: ${plural(unstaged, 'file', 'files')} will be staged and committed`
         : undefined
 
   const toggleAmend = (on: boolean) => {
@@ -55,12 +68,14 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
       if (!headCommit) return
       patchDraft(repo, {
         amend: true,
+        amendHead: headCommit.hash,
         saved: { summary, description },
         ...messageToFields(headCommit.subject, headCommit.body)
       })
     } else {
       patchDraft(repo, {
         amend: false,
+        amendHead: undefined,
         saved: null,
         summary: draft.saved?.summary ?? '',
         description: draft.saved?.description ?? ''
@@ -77,7 +92,7 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
         if (action === 'stage-all-commit') await git.stageAll(r)
         await git.commit(r, message, amend ? { amend: true } : undefined)
       },
-      amend ? 'Commit modificado' : 'Commit creado'
+      amend ? 'Commit amended' : 'Commit created'
     )
     if (!ok) return
     clearDraft(repo)
@@ -99,16 +114,16 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
   return (
     <div className="cf" onKeyDown={onKeyDown}>
       <div className="cf-top">
-        <label className={`cf-amend${canAmend ? '' : ' disabled'}`} title="Modificar el último commit en lugar de crear uno nuevo">
+        <label className={`cf-amend${canAmend ? '' : ' disabled'}`} title="Amend the previous commit instead of creating a new one">
           <input type="checkbox" checked={amend} disabled={!canAmend || busy} onChange={(e) => toggleAmend(e.target.checked)} />
           Amend
         </label>
-        <span className="cf-title">{amend ? 'Modificar el último commit' : 'Mensaje del commit'}</span>
+        <span className="cf-title">{amend ? 'Amend previous commit' : 'Commit message'}</span>
       </div>
       <div className="cf-summary">
         <input
           value={summary}
-          placeholder="Resumen"
+          placeholder="Summary"
           spellCheck={false}
           onChange={(e) => patchDraft(repo, { summary: e.target.value.replace(/[\r\n]+/g, ' ') })}
           onKeyDown={(e) => {
@@ -120,7 +135,7 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
         />
         <span
           className={`cf-count${over ? ' over' : ''}`}
-          title={`Se recomienda un resumen de ${SUMMARY_SOFT_LIMIT} caracteres como máximo`}
+          title={`Summaries of up to ${SUMMARY_SOFT_LIMIT} characters are recommended`}
         >
           {summary.length}/{SUMMARY_SOFT_LIMIT}
         </span>
@@ -128,7 +143,7 @@ export function CommitForm({ repo, status }: { repo: string; status: Status }) {
       <textarea
         ref={descRef}
         value={description}
-        placeholder="Descripción"
+        placeholder="Description"
         spellCheck={false}
         rows={4}
         onChange={(e) => patchDraft(repo, { description: e.target.value })}

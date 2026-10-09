@@ -1,6 +1,8 @@
 // Low-level `git` process runner. No Electron imports: safe to load in plain Node.
 import { spawn, type ChildProcess } from 'child_process'
 import { stat } from 'fs/promises'
+// Import cycle (hosting.ts uses this runner): only ever call it inside a function.
+import { activeIdentity } from './hosting'
 
 /**
  * Output cap. `git log` / `git diff` on big repos can be very large; the
@@ -13,8 +15,13 @@ export class GitError extends Error {
   readonly stdout: string
   readonly stderr: string
   readonly args: readonly string[]
+  /** True when the process was killed through `RunOptions.signal` (cancel / watchdog) */
+  readonly aborted: boolean
 
-  constructor(message: string, info: { code: number | null; stdout: string; stderr: string; args: readonly string[] }) {
+  constructor(
+    message: string,
+    info: { code: number | null; stdout: string; stderr: string; args: readonly string[]; aborted?: boolean }
+  ) {
     super(message)
     // `name` deliberately stays "Error": Electron serialises a rejected IPC
     // call as "Error invoking remote method '...': <name>: <message>", and the
@@ -23,6 +30,7 @@ export class GitError extends Error {
     this.stdout = info.stdout
     this.stderr = info.stderr
     this.args = info.args
+    this.aborted = info.aborted === true
   }
 }
 
@@ -39,6 +47,13 @@ export interface RunOptions {
    * porcelain such as `git stash -u` breaks when it inherits the setting.
    */
   literal?: boolean
+  /**
+   * Aborting kills git and everything it started (ssh, remote helpers, hooks)
+   * and rejects with a GitError whose message is the abort reason's message.
+   */
+  signal?: AbortSignal
+  /** Called for every chunk of output (stdout or stderr): liveness for watchdogs */
+  onActivity?: () => void
 }
 
 export interface RunResult {
@@ -56,8 +71,42 @@ const BASE_CONFIG = [
   '-c', 'core.quotepath=false',
   '-c', 'diff.noprefix=false',
   '-c', 'diff.mnemonicPrefix=false',
-  '-c', 'log.showSignature=false'
+  '-c', 'log.showSignature=false',
+  // A read-only `git diff` must not rewrite .git/index to refresh stat data:
+  // that races with staging on index.lock and re-triggers the file watcher.
+  '-c', 'diff.autoRefreshIndex=false'
 ]
+
+/**
+ * Variables that point git at a repository other than the one in `cwd`. When
+ * the app inherits them (started from a git hook, an IDE terminal, a script)
+ * every command would silently act on that other repository.
+ */
+const REPO_LOCATION_VARS = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_COMMON_DIR',
+  'GIT_NAMESPACE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_PREFIX'
+]
+
+/** Commit identity of the active profile, as environment variables (empty when there is none). */
+function identityEnv(): Record<string, string> {
+  try {
+    const id = activeIdentity()
+    if (!id) return {}
+    const env: Record<string, string> = {}
+    if (id.name) env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = id.name
+    if (id.email) env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = id.email
+    return env
+  } catch {
+    // A broken profile store must never stop git from running.
+    return {}
+  }
+}
 
 function extraPath(): string | undefined {
   // GUI apps on macOS start with a minimal PATH; make Homebrew helpers
@@ -70,8 +119,10 @@ function extraPath(): string | undefined {
 }
 
 function buildEnv(extra?: Record<string, string>, literal?: boolean): NodeJS.ProcessEnv {
+  const inherited: NodeJS.ProcessEnv = { ...process.env }
+  for (const name of REPO_LOCATION_VARS) delete inherited[name]
   const env: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...inherited,
     // Never hang waiting for credentials or an editor.
     GIT_TERMINAL_PROMPT: '0',
     GIT_EDITOR: 'true',
@@ -84,6 +135,8 @@ function buildEnv(extra?: Record<string, string>, literal?: boolean): NodeJS.Pro
     // Read-only commands (status) must not rewrite the index: that would
     // re-trigger our own file watcher in a loop.
     GIT_OPTIONAL_LOCKS: '0',
+    // Commits made by the app use the active profile (the user's config is untouched).
+    ...identityEnv(),
     ...extra
   }
   if (literal) env['GIT_LITERAL_PATHSPECS'] = '1'
@@ -92,6 +145,10 @@ function buildEnv(extra?: Record<string, string>, literal?: boolean): NodeJS.Pro
   return env
 }
 
+/** Transfer progress (`--progress`), which is noise in an error message */
+const PROGRESS_LINE =
+  /^(remote: )?(Enumerating objects|Counting objects|Compressing objects|Receiving objects|Resolving deltas|Writing objects|Unpacking objects|Updating files|Checking out files|Checking connectivity|Filtering content|Delta compression using|Total \d+ \(delta)/
+
 /** Turns git's stdout/stderr into a short human-readable message. */
 export function cleanGitMessage(stderr: string, stdout: string, fallback: string): string {
   const tidy = (text: string): string[] =>
@@ -99,7 +156,7 @@ export function cleanGitMessage(stderr: string, stdout: string, fallback: string
       .replace(/\r/g, '\n')
       .split('\n')
       .map((l) => l.trimEnd())
-      .filter((l) => l.trim() !== '' && !/^hint:/.test(l))
+      .filter((l) => l.trim() !== '' && !/^hint:/.test(l) && !PROGRESS_LINE.test(l))
       .map((l) => l.replace(/^(fatal|error|warning): /, ''))
 
   const errLines = tidy(stderr)
@@ -115,6 +172,53 @@ export function cleanGitMessage(stderr: string, stdout: string, fallback: string
   if (lines.length > 30) lines = [...lines.slice(0, 30), `... (${lines.length - 30} more lines)`]
   const msg = lines.join('\n').trim()
   return msg || fallback
+}
+
+/** First argument that is not a `-c key=value` pair: the subcommand, for messages. */
+function subcommand(args: readonly string[]): string {
+  let i = 0
+  while (args[i] === '-c') i += 2
+  return args[i] ?? ''
+}
+
+/**
+ * Signals git and every process it started. On POSIX the child is the leader
+ * of its own process group (it is spawned detached), so signalling `-pid`
+ * reaches ssh, git-remote-https, hooks and the askpass helper too.
+ */
+function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
+  const pid = child.pid
+  if (pid === undefined) return
+  if (process.platform === 'win32') {
+    try {
+      const killer = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+      killer.once('error', () => child.kill())
+    } catch {
+      child.kill()
+    }
+    return
+  }
+  try {
+    process.kill(-pid, signal)
+  } catch {
+    try {
+      child.kill(signal)
+    } catch {
+      // already gone
+    }
+  }
+}
+
+/** How long a cancelled git gets to clean up after SIGTERM before SIGKILL */
+const KILL_GRACE_MS = 1500
+/** How long to wait for stragglers holding the pipes once git itself has exited */
+const DRAIN_GRACE_MS = 500
+
+function abortMessage(signal: AbortSignal): string {
+  const reason: unknown = signal.reason
+  if (reason instanceof Error && reason.name !== 'AbortError' && reason.message) return reason.message
+  if (typeof reason === 'string' && reason) return reason
+  return 'Operation cancelled'
 }
 
 /**
@@ -133,6 +237,13 @@ export function runGit(cwd: string, args: readonly string[], opts: RunOptions = 
         reject(new GitError('Invalid argument', { code: null, stdout: '', stderr: '', args: [] }))
         return
       }
+    }
+    const signal = opts.signal
+    const aborted = (): GitError =>
+      new GitError(signal ? abortMessage(signal) : 'Operation cancelled', { code: null, stdout: '', stderr: '', args, aborted: true })
+    if (signal?.aborted) {
+      reject(aborted())
+      return
     }
     const okCodes = opts.okCodes ?? [0]
     let child: ChildProcess
@@ -159,9 +270,12 @@ export function runGit(cwd: string, args: readonly string[], opts: RunOptions = 
     let size = 0
     let overflow = false
     let settled = false
+    let killing = false
+    let killTimer: NodeJS.Timeout | undefined
     const text = (chunks: Buffer[]): string => Buffer.concat(chunks).toString('utf8')
     const collect = (into: Buffer[]) => (chunk: Buffer): void => {
       if (overflow) return
+      opts.onActivity?.()
       size += chunk.length
       if (size > MAX_BUFFER) {
         overflow = true
@@ -173,28 +287,63 @@ export function runGit(cwd: string, args: readonly string[], opts: RunOptions = 
     child.stdout?.on('data', collect(out))
     child.stderr?.on('data', collect(err))
 
-    child.once('error', (cause: NodeJS.ErrnoException) => {
-      if (settled) return
+    const onAbort = (): void => {
+      if (settled || killing) return
+      killing = true
+      killTree(child, 'SIGTERM')
+      killTimer = setTimeout(() => killTree(child, 'SIGKILL'), KILL_GRACE_MS)
+    }
+    /** Returns false when the promise was already settled. */
+    const settle = (): boolean => {
+      if (settled) return false
       settled = true
+      signal?.removeEventListener('abort', onAbort)
+      return true
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+
+    child.once('error', (cause: NodeJS.ErrnoException) => {
+      clearTimeout(killTimer)
+      if (!settle()) return
       // Spawn-level failure: git missing, cwd missing...
       void describeSpawnFailure(cwd, cause).then((message) =>
         reject(new GitError(message, { code: null, stdout: '', stderr: '', args }))
       )
     })
-    child.once('close', (code, signal) => {
-      if (settled) return
-      settled = true
+    child.once('exit', () => {
+      clearTimeout(killTimer)
+      if (!killing) return
+      // Git is gone, but something it started may have ignored SIGTERM, and may
+      // be holding the pipes open (in which case 'close' never comes). Give the
+      // rest of the group a moment to clean up, then make sure and stop waiting.
+      setTimeout(() => {
+        killTree(child, 'SIGKILL')
+        if (settled) return
+        child.stdout?.destroy()
+        child.stderr?.destroy()
+        if (settle()) reject(aborted())
+      }, DRAIN_GRACE_MS)
+    })
+    child.once('close', (code, sig) => {
+      if (!settle()) return
+      const succeeded = code !== null && okCodes.includes(code)
+      // Cancelled a moment too late: git finished its work, so say so.
+      if (killing && !succeeded) {
+        reject(aborted())
+        return
+      }
       if (overflow) {
         reject(new GitError('Git produced too much output', { code: null, stdout: '', stderr: '', args }))
         return
       }
       const stdout = text(out)
       const stderr = text(err)
-      if (code !== null && okCodes.includes(code)) {
+      if (succeeded) {
         resolve({ stdout, stderr, code })
         return
       }
-      const fallback = code === null ? `Git was terminated (${signal ?? 'unknown signal'})` : `git ${args[0] ?? ''} failed (exit code ${code})`
+      const fallback =
+        code === null ? `Git was terminated (${sig ?? 'unknown signal'})` : `git ${subcommand(args)} failed (exit code ${code})`
       reject(new GitError(cleanGitMessage(stderr, stdout, fallback), { code, stdout, stderr, args }))
     })
 

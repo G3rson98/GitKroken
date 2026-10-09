@@ -111,7 +111,12 @@ export interface GitApi {
   commit(repo: string, message: string, opts?: { amend?: boolean }): Promise<void>
 
   // --- branches & history -------------------------------------------------
-  /** Checking out `origin/foo` creates/track a local `foo` */
+  /**
+   * `ref` may be a short name or, better, a full one (`refs/heads/x`, `refs/remotes/o/x`,
+   * `refs/tags/x`): a short name that is both a branch and a tag is rejected as ambiguous.
+   * The same holds for `merge`, `rebase` and the `startPoint` of `createBranch`.
+   * Checking out `origin/foo` creates (or fast-forwards) a local `foo`.
+   */
   checkout(repo: string, ref: string): Promise<void>
   createBranch(repo: string, name: string, startPoint?: string, checkout?: boolean): Promise<void>
   deleteBranch(repo: string, name: string, force?: boolean): Promise<void>
@@ -132,17 +137,20 @@ export interface GitApi {
   fetch(repo: string): Promise<void>
   pull(repo: string, opts?: { rebase?: boolean }): Promise<void>
   /** Pushes the current branch (or `branch`); sets upstream when missing */
-  push(repo: string, opts?: { branch?: string; force?: boolean }): Promise<void>
+  push(repo: string, opts?: { branch?: string; force?: boolean; lease?: string }): Promise<void>
   deleteRemoteBranch(repo: string, remote: string, branch: string): Promise<void>
   addRemote(repo: string, name: string, url: string): Promise<void>
   removeRemote(repo: string, name: string): Promise<void>
 
   // --- stashes ------------------------------------------------------------
   stashSave(repo: string, message?: string): Promise<void>
-  /** `index` is the N in stash@{N} */
-  stashPop(repo: string, index: number): Promise<void>
-  stashApply(repo: string, index: number): Promise<void>
-  stashDrop(repo: string, index: number): Promise<void>
+  /**
+   * `index` is the N in stash@{N}. Pass the stash commit `hash` as shown to the
+   * user: the call is refused if N no longer names that stash.
+   */
+  stashPop(repo: string, index: number, hash?: string): Promise<void>
+  stashApply(repo: string, index: number, hash?: string): Promise<void>
+  stashDrop(repo: string, index: number, hash?: string): Promise<void>
 
   // --- misc ---------------------------------------------------------------
   /** Reveal a path in Finder / file manager */
@@ -174,7 +182,7 @@ export interface GitApi {
   redo(repo: string): Promise<void>
 
   // --- file history, blame, search (src/main/git/history.ts) -----------------
-  /** Blame of `path` at `rev` (default: HEAD) */
+  /** Blame of `path` at `rev`; without `rev`, of the working tree (uncommitted lines carry the all-zero hash) */
   blame(repo: string, path: string, rev?: string): Promise<BlameLine[]>
   /** Commits that touched `path`, newest first, following renames */
   fileHistory(repo: string, path: string, opts?: { limit?: number; skip?: number }): Promise<FileHistoryEntry[]>
@@ -265,12 +273,18 @@ export interface BlameLine {
   /** 1-based line number in the blamed revision */
   lineNo: number
   text: string
+  /** Path the file had in that commit, when it differs (renames) */
+  path?: string
+  /** The commit and path this line's commit changed the file from */
+  previous?: { hash: string; path: string }
 }
 
 export interface FileHistoryEntry {
   commit: Commit
   /** Path of the file in that commit (differs after a rename) */
   path: string
+  /** Previous path when this commit renamed the file */
+  oldPath?: string
   status: FileStatus
 }
 
