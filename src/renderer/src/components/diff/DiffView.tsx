@@ -20,7 +20,7 @@ import { confirmDialog } from '../ui/overlays'
 import { STATUS_META, Segmented, StatusIcon, readPref, splitPath, writePref } from '../details/common'
 import { findDiffFile, parseDiff, type DiffFile, type DiffLine } from './parseDiff'
 import { buildHunkPatch } from './patch'
-import { buildRows, maxWidths, rowAt, rowOffsets, visibleRange, type DiffRow, type ViewMode } from './rows'
+import { ROW_HEIGHT, buildRows, maxWidths, rowAt, rowOffsets, visibleRange, type DiffRow, type ViewMode } from './rows'
 import { wordDiff, type Segment, type WordDiff } from './wordDiff'
 import { highlightFile, mergeTokens, type TokenMap } from './highlight'
 import './DiffView.css'
@@ -54,7 +54,7 @@ export function DiffView() {
   const sel = useStore((s) => s.selectedFile)
   const status = useStore((s) => s.status)
   const busy = useStore((s) => s.busy !== null)
-  const [mode, setModeState] = useState<ViewMode>(() => readPref(MODE_KEY, MODES, 'hunk'))
+  const [mode, setModeState] = useState<ViewMode>(() => readPref(MODE_KEY, MODES, 'inline'))
   const [loaded, setLoaded] = useState<Loaded | null>(null)
 
   const setMode = (m: ViewMode) => {
@@ -62,7 +62,9 @@ export function DiffView() {
     writePref(MODE_KEY, m)
   }
 
-  const key = sel ? fileKey(repo, sel) : ''
+  // Hunk view shows only the changes; Inline and Split show the whole file
+  const full = mode !== 'hunk'
+  const key = sel ? fileKey(repo, sel) + (full ? '\0full' : '') : ''
   const isWip = !!sel && !sel.commit
   // Only working-tree files are refetched when the status changes
   const liveStatus = isWip ? status : null
@@ -76,7 +78,8 @@ export function DiffView() {
         oldPath: sel.oldPath,
         commit: sel.commit,
         staged: sel.staged,
-        untracked: sel.untracked
+        untracked: sel.untracked,
+        fullContext: full
       })
       .then(
         (text) => {
@@ -201,7 +204,7 @@ export function DiffView() {
         <Notice text={emptyReason(file)} />
       ) : (
         <SyntaxCtx.Provider value={tokens}>
-          <DiffBody key={key} file={file} mode={mode} actions={canApplyHunks ? actions : null} busy={busy} />
+          <DiffBody key={key} file={file} mode={mode} actions={canApplyHunks && !full ? actions : null} busy={busy} />
         </SyntaxCtx.Provider>
       )}
     </div>
@@ -383,6 +386,18 @@ function DiffBody(props: { file: DiffFile; mode: ViewMode; actions: HunkActions 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
+
+  // Whole-file views open on the first change instead of the top of the file
+  useLayoutEffect(() => {
+    const el = mainRef.current
+    if (!el || mode === 'hunk') return
+    const changed = (l: DiffLine | null) => !!l && l.type !== 'context'
+    const index = rows.findIndex((r) => (r.kind === 'line' ? changed(r.line) : r.kind === 'split' && (changed(r.left) || changed(r.right))))
+    if (index > 0) el.scrollTop = Math.max(0, offsets[index] - 6 * ROW_HEIGHT.line)
+    if (leftRef.current) leftRef.current.scrollTop = el.scrollTop
+    update()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useLayoutEffect(update, [update])
 

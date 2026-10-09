@@ -135,6 +135,8 @@ function gitWithPaths(repo: string, args: string[], paths: Iterable<string>): Pr
 
 /** Diff flags that keep the output a plain, appliable unified diff. */
 const DIFF_FLAGS = ['--no-color', '--no-ext-diff', '--no-textconv', '--find-renames']
+/** More context lines than any file has: the diff then carries the whole file */
+const FULL_CONTEXT = '--unified=10000000'
 
 // --- repositories --------------------------------------------------------------------
 
@@ -283,11 +285,12 @@ async function diff(repo: string, req: DiffRequest): Promise<string> {
   if (!req || typeof req.path !== 'string' || !req.path) throw new Error('Missing file path')
   const paths = req.oldPath && req.oldPath !== req.path ? [req.oldPath, req.path] : [req.path]
   assertPaths(paths)
+  const flags = req.fullContext ? [...DIFF_FLAGS, FULL_CONTEXT] : DIFF_FLAGS
 
   if (req.commit) {
     assertRef(req.commit, 'commit')
     const commitDiff = (rev: string, files: string[]): Promise<string> =>
-      git(repo, ['diff-tree', '-p', '--root', '--no-commit-id', ...DIFF_FLAGS, '--diff-merges=first-parent', rev, '--', ...files], LITERAL)
+      git(repo, ['diff-tree', '-p', '--root', '--no-commit-id', ...flags, '--diff-merges=first-parent', rev, '--', ...files], LITERAL)
     const out = await commitDiff(req.commit, paths)
     if (out) return out
     // Stash with untracked files: those live in the third parent, a root commit.
@@ -299,9 +302,9 @@ async function diff(repo: string, req: DiffRequest): Promise<string> {
   }
 
   if (req.untracked) return untrackedDiff(repo, req.path)
-  if (req.staged) return git(repo, ['diff', '--cached', ...DIFF_FLAGS, '--', ...paths], LITERAL)
+  if (req.staged) return git(repo, ['diff', '--cached', ...flags, '--', ...paths], LITERAL)
 
-  const out = await git(repo, ['diff', ...DIFF_FLAGS, '--', ...paths], LITERAL)
+  const out = await git(repo, ['diff', ...flags, '--', ...paths], LITERAL)
   if (out) return out
   // Nothing vs the index: maybe the caller did not flag an untracked file.
   const others = await git(repo, ['ls-files', '--others', '--exclude-standard', '-z', '--', req.path], LITERAL)

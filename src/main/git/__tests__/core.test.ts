@@ -487,6 +487,29 @@ describe('commit', () => {
 })
 
 describe('diff', () => {
+  it('fullContext returns the whole file as one hunk (worktree, staged and commit)', async () => {
+    const repo = emptyRepo()
+    const body = (changed: string) => Array.from({ length: 60 }, (_, i) => (i === 29 ? changed : `line ${i + 1}`)).join('\n') + '\n'
+    commitFiles(repo, { 'a.txt': body('line 30') }, 'base')
+    write(repo, 'a.txt', body('LINE 30'))
+
+    const short = await api.diff(repo, { path: 'a.txt' })
+    expect(short).toContain('@@ -27,7 +27,7 @@')
+    expect(short).not.toContain(' line 1\n')
+
+    const full = await api.diff(repo, { path: 'a.txt', fullContext: true })
+    expect(full).toContain('@@ -1,60 +1,60 @@')
+    expect(full).toContain(' line 1\n')
+    expect(full).toContain('-line 30\n+LINE 30\n')
+    expect(full).toContain(' line 60\n')
+
+    await api.stage(repo, ['a.txt'])
+    expect(await api.diff(repo, { path: 'a.txt', staged: true, fullContext: true })).toContain('@@ -1,60 +1,60 @@')
+    await api.commit(repo, 'change')
+    const head = (await api.log(repo))[0]!.hash
+    expect(await api.diff(repo, { path: 'a.txt', commit: head, fullContext: true })).toContain('@@ -1,60 +1,60 @@')
+  })
+
   it('unstaged, staged and untracked diffs', async () => {
     const repo = emptyRepo()
     commitFiles(repo, { 'a.txt': 'one\ntwo\nthree\n' }, 'base')

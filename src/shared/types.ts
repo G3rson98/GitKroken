@@ -69,6 +69,8 @@ export interface DiffRequest {
   staged?: boolean
   /** Untracked file: diff against /dev/null */
   untracked?: boolean
+  /** Include the whole file as context instead of 3 lines around each change */
+  fullContext?: boolean
 }
 
 export type ResetMode = 'soft' | 'mixed' | 'hard'
