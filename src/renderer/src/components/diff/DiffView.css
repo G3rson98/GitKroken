@@ -1,0 +1,104 @@
+.dv {
+  --dv-add-bg: #17301f;
+  --dv-add-gutter: #1c3b26;
+  --dv-add-word: #2a6a3c;
+  --dv-del-bg: #3a1c1f;
+  --dv-del-gutter: #482226;
+  --dv-del-word: #86302f;
+  --dv-ctx-gutter: #1f2229;
+  flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1);
+}
+
+/* ---- header ---- */
+.dv-header {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 12px;
+  background: var(--bg-3); border-bottom: 1px solid var(--border);
+}
+.dv-path {
+  min-width: 60px; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  direction: rtl; text-align: left; user-select: text; font-size: 13px;
+}
+/* rtl only to put the ellipsis on the left; the text itself stays one ltr run */
+.dv-path-inner { direction: ltr; unicode-bidi: isolate; }
+.dv-path-old, .dv-path-dir { color: var(--text-dim); }
+.dv-path-name { color: #fff; font-weight: 600; }
+.dv-badge {
+  flex: none; padding: 1px 7px; border-radius: 9px; font-size: 11px; white-space: nowrap;
+  background: var(--bg-1); border: 1px solid var(--border-soft); color: var(--text-dim);
+}
+.dv-badge.fs-added, .dv-badge.fs-untracked { color: var(--green); }
+.dv-badge.fs-modified { color: var(--yellow); }
+.dv-badge.fs-deleted { color: var(--red); }
+.dv-badge.fs-renamed, .dv-badge.fs-copied { color: var(--fs-blue); }
+.dv-badge.fs-conflicted { color: var(--orange); }
+.dv-stats { flex: none; display: inline-flex; gap: 6px; font: 11px var(--mono); }
+.dv-stat-add { color: var(--green); }
+.dv-stat-del { color: var(--red); }
+.dv-spring { flex: 1; min-width: 4px; }
+
+/* ---- notices ---- */
+.dv-notice {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 24px; color: var(--text-faint); text-align: center;
+}
+.dv-notice-title { color: var(--text-dim); font-size: 14px; }
+.dv-notice-detail { max-width: 520px; font-size: 12px; white-space: pre-wrap; user-select: text; }
+.dv-notice.error .dv-notice-title { color: var(--red); }
+
+/* ---- body ---- */
+.dv-body { flex: 1; min-height: 0; display: flex; font: 12px/20px var(--mono); tab-size: 4; }
+.dv-scroll { flex: 1 1 0; min-width: 0; overflow: auto; position: relative; }
+.dv-split .dv-scroll { overflow-x: scroll; }
+.dv-split .dv-left { border-right: 1px solid var(--border); }
+/* The right pane owns the vertical scrollbar; both keep the horizontal one */
+.dv-scroll.dv-left::-webkit-scrollbar { width: 0; height: 10px; }
+.dv-spacer { position: relative; min-height: 100%; }
+.dv-window { position: absolute; left: 0; right: 0; }
+
+.dv-row { display: flex; height: 20px; white-space: pre; color: var(--text); }
+.dv-gutter {
+  position: sticky; left: 0; z-index: 1; flex: none; display: flex;
+  background: var(--dv-ctx-gutter); color: var(--text-faint); user-select: none;
+  border-right: 1px solid var(--border);
+}
+.dv-num { flex: none; width: calc(var(--dv-digits) * 1ch + 14px); padding: 0 7px; text-align: right; }
+.dv-sign { flex: none; width: 2ch; text-align: center; color: var(--text-dim); }
+.dv-code { flex: 1; padding: 0 16px 0 8px; user-select: text; cursor: text; }
+.dv-code mark { color: inherit; border-radius: 2px; }
+.dv-aside { margin-left: 12px; color: var(--text-faint); font-style: italic; user-select: none; }
+
+.dv-add { background: var(--dv-add-bg); }
+.dv-add .dv-gutter { background: var(--dv-add-gutter); color: #7fbf8c; }
+.dv-add .dv-sign { color: var(--green); }
+.dv-add mark { background: var(--dv-add-word); }
+.dv-del { background: var(--dv-del-bg); }
+.dv-del .dv-gutter { background: var(--dv-del-gutter); color: #d08a87; }
+.dv-del .dv-sign { color: var(--red); }
+.dv-del mark { background: var(--dv-del-word); }
+.dv-empty {
+  background: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255, 255, 255, .025) 6px 12px);
+}
+.dv-empty .dv-gutter { background: var(--bg-0); }
+.dv-code::selection, .dv-code *::selection { background: rgba(25, 181, 200, .4); }
+
+/* Bars that stay in view while the code scrolls sideways */
+.dv-sticky {
+  position: sticky; left: 0; width: var(--dv-vw); max-width: 100%; height: 100%;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px; overflow: hidden;
+}
+.dv-hunk {
+  height: 32px; background: var(--bg-3); font-family: var(--font);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.dv-hunk-range { flex: none; font: 11px var(--mono); color: var(--accent); user-select: text; }
+.dv-hunk-section {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre;
+  font: 11px var(--mono); color: var(--text-dim);
+}
+.dv-hunk-count { flex: none; font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+.dv-gap {
+  height: 24px; background: var(--bg-2); color: var(--text-faint); font: 11px/24px var(--font);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.dv-gap .dv-sticky > span { white-space: nowrap; flex: none; }
+.dv-gap .dv-sticky > .dv-hunk-section { flex: 0 1 auto; }

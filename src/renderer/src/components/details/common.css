@@ -1,0 +1,43 @@
+/* Shared by the right panel (details/) and the diff viewer (diff/) */
+:root {
+  --fs-blue: #58a6ff;
+}
+
+.fs-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 16px; height: 16px; border-radius: 3px; }
+.fs-added, .fs-untracked { color: var(--green); }
+.fs-modified { color: var(--yellow); }
+.fs-deleted { color: var(--red); }
+.fs-renamed, .fs-copied { color: var(--fs-blue); }
+.fs-conflicted { color: var(--orange); }
+
+.gd-seg {
+  display: inline-flex; flex: none; border: 1px solid var(--border-soft); border-radius: 4px;
+  overflow: hidden; background: var(--bg-0);
+}
+.gd-seg-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; height: 22px;
+  font-size: 11px; color: var(--text-dim); white-space: nowrap;
+}
+.gd-seg-btn + .gd-seg-btn { border-left: 1px solid var(--border-soft); }
+.gd-seg-btn:hover { color: var(--text); background: var(--bg-hover); }
+.gd-seg-btn.active { color: #06262b; background: var(--accent); font-weight: 600; }
+
+.gd-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 24px; height: 24px; border-radius: 4px; color: var(--text-dim);
+}
+.gd-icon-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
+.gd-icon-btn:disabled { opacity: .4; cursor: default; }
+
+/* Small outlined action button (Stage / Unstage / Discard …) */
+.gd-mini-btn {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; height: 22px; padding: 0 8px;
+  border-radius: 3px; border: 1px solid var(--border-soft); background: var(--bg-3);
+  font-size: 11px; font-weight: 600; white-space: nowrap; color: var(--text);
+}
+.gd-mini-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.gd-mini-btn:disabled { opacity: .45; cursor: default; }
+.gd-mini-btn.green { color: var(--green); border-color: rgba(63, 185, 80, .5); }
+.gd-mini-btn.green:hover:not(:disabled) { background: var(--green); border-color: var(--green); color: #06210c; }
+.gd-mini-btn.red { color: var(--red); border-color: rgba(229, 83, 75, .5); }
+.gd-mini-btn.red:hover:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }

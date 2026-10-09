@@ -1,4 +1,71 @@
-// STUB — replaced by the real implementation.
+import { Plus, X } from 'lucide-react'
+import { useStore, type RepoTab } from '../../store'
+import { git } from '../../lib/git'
+import { showContextMenu } from '../ui/overlays'
+import './tabs.css'
+
 export function TabBar() {
-  return <div style={{ padding: 12, color: "var(--text-faint)" }}>TabBar</div>
+  const tabs = useStore((s) => s.tabs)
+  const activeRepo = useStore((s) => s.activeRepo)
+  const setActive = useStore((s) => s.setActive)
+  const closeTab = useStore((s) => s.closeTab)
+  const isMac = window.bridge?.platform === 'darwin'
+
+  const activate = (path: string | null) => {
+    // setActive resets the loaded repo state, so never call it for the tab already shown
+    if (path !== useStore.getState().activeRepo) setActive(path)
+  }
+
+  const closeOthers = (keep: RepoTab) => {
+    activate(keep.path)
+    for (const t of useStore.getState().tabs) if (t.path !== keep.path) closeTab(t.path)
+  }
+
+  return (
+    <div className={`tb drag-region${isMac ? ' tb-mac' : ''}`}>
+      <div className="tb-tabs">
+        {tabs.map((t) => (
+          <div
+            key={t.path}
+            className={`tb-tab no-drag${t.path === activeRepo ? ' active' : ''}`}
+            title={t.path}
+            onClick={() => activate(t.path)}
+            onMouseDown={(e) => {
+              if (e.button === 1) e.preventDefault() // no autoscroll cursor on middle click
+            }}
+            onAuxClick={(e) => {
+              if (e.button === 1) closeTab(t.path)
+            }}
+            onContextMenu={(e) =>
+              showContextMenu(e, [
+                { label: 'Cerrar pestaña', onClick: () => closeTab(t.path) },
+                { label: 'Cerrar las demás', onClick: () => closeOthers(t), disabled: tabs.length < 2 },
+                { separator: true },
+                { label: 'Mostrar en la carpeta', onClick: () => void git.reveal(t.path).catch(() => {}) }
+              ])
+            }
+          >
+            <span className="tb-tab-name">{t.name}</span>
+            <button
+              className="tb-close"
+              title="Cerrar pestaña"
+              onClick={(e) => {
+                e.stopPropagation()
+                closeTab(t.path)
+              }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ))}
+        <button
+          className={`tb-new no-drag${activeRepo === null ? ' active' : ''}`}
+          title="Nueva pestaña"
+          onClick={() => activate(null)}
+        >
+          <Plus size={15} />
+        </button>
+      </div>
+    </div>
+  )
 }
