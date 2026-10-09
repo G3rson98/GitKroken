@@ -1,7 +1,8 @@
 .sb { height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--bg-2); }
 
 /* ----- filter ----- */
-.sb-filter { position: relative; flex: none; padding: 8px; border-bottom: 1px solid var(--border); }
+.sb-filter { position: relative; flex: none; padding: 8px; }
+.sb-filter input { background: transparent; border-color: var(--bg-3); }
 .sb-filter input { width: 100%; padding: 5px 26px 5px 28px; user-select: text; }
 .sb-filter-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
 .sb-filter-clear {
@@ -30,15 +31,14 @@
   gap: 6px;
   height: 28px;
   padding: 0 6px 0 8px;
-  background: var(--bg-3);
-  border-bottom: 1px solid var(--border);
-  color: var(--text-dim);
+  background: var(--bg-2);
+  color: var(--text);
   cursor: pointer;
 }
-.sb-section + .sb-section .sb-head { border-top: 1px solid var(--border); }
-.sb-head:hover { color: var(--text); }
+.sb-section + .sb-section .sb-head { border-top: 1px solid var(--bg-1); }
+.sb-head:hover { background: var(--bg-3); }
 .sb-head-icon { display: grid; place-items: center; flex: none; }
-.sb-head-title { flex: 1; min-width: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.sb-head-title { flex: 1; min-width: 0; font-size: 12px; font-weight: 700; }
 .sb-add {
   flex: none;
   width: 20px;
@@ -54,13 +54,11 @@
   flex: none;
   min-width: 18px;
   padding: 0 5px;
-  border-radius: 8px;
-  background: var(--bg-0);
-  color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 600;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 700;
   line-height: 16px;
-  text-align: center;
+  text-align: right;
   letter-spacing: 0;
 }
 
@@ -79,10 +77,11 @@
 .sb-icon { flex: none; display: grid; place-items: center; width: 14px; color: var(--text-dim); }
 .sb-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sb-folder .sb-label, .sb-remote .sb-label { color: var(--text-dim); }
-.sb-folder .sb-count, .sb-remote .sb-count { background: transparent; color: var(--text-faint); }
+.sb-folder .sb-count, .sb-remote .sb-count { color: var(--text-faint); font-weight: 400; }
 .sb-remote .sb-label { font-weight: 600; color: var(--text); }
-.sb-row.current .sb-label { font-weight: 700; color: #fff; }
-.sb-check { color: var(--accent); }
+.sb-row.current, .sb-row.current:hover { background: #2a5425; }
+.sb-row.current .sb-label { color: #fff; }
+.sb-check { color: #7fdc6f; }
 .sb-meta { flex: none; display: flex; gap: 5px; font-size: 11px; font-family: var(--mono); }
 .sb-ahead { color: var(--green); }
 .sb-behind { color: var(--orange); }

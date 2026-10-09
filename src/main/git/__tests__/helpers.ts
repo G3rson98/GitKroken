@@ -9,7 +9,7 @@ let clock = 1_700_000_000
 
 /** Isolates git from the developer's own config and gives it an identity. */
 export function setupGitEnv(): void {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'gitabyss-home-')))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'gitkroken-home-')))
   roots.push(home)
   const config = join(home, 'gitconfig')
   writeFileSync(
@@ -45,7 +45,7 @@ export function tick(seconds = 60): void {
   process.env['GIT_COMMITTER_DATE'] = stamp
 }
 
-export function tmpDir(prefix = 'gitabyss-'): string {
+export function tmpDir(prefix = 'gitkroken-'): string {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
   roots.push(dir)
   return dir

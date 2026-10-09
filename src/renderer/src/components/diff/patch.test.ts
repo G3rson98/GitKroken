@@ -159,7 +159,7 @@ describe.skipIf(!hasGit())('single-hunk patches through git apply', () => {
   const stagedDiff = (path?: string) => parseDiff(git(['diff', '--cached', '-M', ...(path ? ['--', path] : [])]))[0]
 
   beforeEach(() => {
-    repo = mkdtempSync(join(tmpdir(), 'gitabyss-patch-'))
+    repo = mkdtempSync(join(tmpdir(), 'gitkroken-patch-'))
     git(['init', '-q'])
     git(['config', 'core.autocrlf', 'false'])
   })

@@ -7,8 +7,9 @@
 /* ---- shared header strip ---- */
 .rp-head {
   flex: none; display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 8px 0 12px;
-  background: var(--bg-3); border-bottom: 1px solid var(--border);
+  background: #1a3d7c; color: #fff;
 }
+.rp-head .rp-head-label, .rp-head .rp-branch { color: #cfe0ff; }
 .rp-head-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .rp-head-label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .rp-branch { color: var(--accent); }
@@ -59,7 +60,7 @@
 .rp-ref-stash { border-color: var(--purple); color: var(--purple); }
 .rp-author { display: flex; align-items: center; gap: 10px; }
 .rp-avatar {
-  flex: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  flex: none; width: 34px; height: 34px; border-radius: 3px; display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .02em;
 }
 .rp-author-text { min-width: 0; }

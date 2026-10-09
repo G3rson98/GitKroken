@@ -4,7 +4,7 @@
   flex: none;
   display: flex;
   align-items: stretch;
-  background: var(--bg-0);
+  background: var(--bg-2);
   padding: 0 48px 0 0; /* keep a draggable strip on the right */
   min-width: 0;
 }
@@ -25,8 +25,8 @@
   overflow: hidden;
 }
 .tb-tab:first-child { border-left: 1px solid var(--border); }
-.tb-tab:hover { background: var(--bg-2); color: var(--text); }
-.tb-tab.active { background: var(--bg-3); color: var(--text); border-top-color: var(--accent); }
+.tb-tab:hover { background: var(--bg-3); color: var(--text); }
+.tb-tab.active { background: var(--bg-0); color: #fff; font-weight: 700; border-top-color: transparent; }
 .tb-tab-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tb-close {
   flex: none;
@@ -48,7 +48,7 @@
   color: var(--text-dim);
   border-top: 2px solid transparent;
 }
-.tb-new:hover { background: var(--bg-2); color: var(--text); }
+.tb-new:hover { background: var(--bg-3); color: var(--text); }
 .tb-new.active { background: var(--bg-1); color: var(--accent); border-top-color: var(--accent); }
 
 /* ---------- Welcome ---------- */

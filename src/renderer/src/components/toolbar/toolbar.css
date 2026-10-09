@@ -6,8 +6,8 @@
   align-items: center;
   gap: 12px;
   padding: 0 8px;
-  background: var(--bg-3);
-  border-bottom: 1px solid var(--border);
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--bg-3);
   position: relative;
   z-index: 20; /* dropdown panels overlap the panels below */
 }
@@ -33,7 +33,7 @@
 .tool-sel-btn:hover:not(:disabled), .tool-sel-btn.open { background: var(--bg-hover); }
 .tool-sel-btn:disabled { cursor: default; opacity: .6; }
 .tool-sel-caption { font-size: 10px; line-height: 1.2; color: var(--text-faint); letter-spacing: .03em; }
-.tool-sel-value { display: flex; align-items: center; gap: 5px; max-width: 100%; font-weight: 600; }
+.tool-sel-value { display: flex; align-items: center; gap: 5px; max-width: 100%; font-size: 14px; font-weight: 700; }
 .tool-sel-value > svg { flex: none; color: var(--text-dim); }
 .tool-sel-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tool-sel-panel {
@@ -95,7 +95,7 @@
 /* ----- icon-over-label buttons ----- */
 .tool-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
   justify-content: center;
   gap: 2px;
@@ -109,11 +109,12 @@
 .tool-btn:active:not(:disabled) { background: var(--bg-2); }
 .tool-btn:disabled { color: var(--text-faint); cursor: default; }
 .tool-btn-icon { position: relative; display: grid; place-items: center; height: 20px; }
-.tool-btn-label { font-size: 11px; line-height: 1.2; }
+.tool-btn-label { font-size: 11px; line-height: 1.2; color: var(--text-dim); }
+.tool-btn:disabled .tool-btn-label { color: var(--text-faint); }
 .tool-badge {
   position: absolute;
-  top: -5px;
-  left: calc(100% - 4px);
+  top: 8px;
+  left: calc(100% - 2px);
   min-width: 15px;
   height: 15px;
   padding: 0 4px;

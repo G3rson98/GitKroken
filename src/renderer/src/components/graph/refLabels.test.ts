@@ -92,12 +92,9 @@ describe('helpers', () => {
     expect(initials('  ')).toBe('?')
   })
 
-  it('formats dates relative to today', () => {
-    const now = new Date(2026, 4, 20, 15, 0, 0).getTime()
+  it('formats dates as dd/mm/yyyy @ h:mm', () => {
     const at = (y: number, m: number, d: number, h: number, min: number) => new Date(y, m, d, h, min).getTime() / 1000
-    expect(formatDate(at(2026, 4, 20, 9, 5), now)).toMatch(/^hoy 0?9:05/)
-    expect(formatDate(at(2026, 4, 19, 23, 59), now)).toMatch(/^ayer 23:59/)
-    expect(formatDate(at(2026, 0, 3, 18, 4), now)).toMatch(/^3 ene\.? 18:04$/)
-    expect(formatDate(at(2025, 0, 3, 18, 4), now)).toMatch(/^3 ene\.? 2025$/)
+    expect(formatDate(at(2026, 8, 17, 11, 32))).toBe('17/09/2026 @ 11:32')
+    expect(formatDate(at(2026, 7, 7, 7, 8))).toBe('07/08/2026 @ 7:08')
   })
 })

@@ -1,6 +1,6 @@
 {
-  "name": "gitabyss",
-  "productName": "GitAbyss",
+  "name": "gitkroken",
+  "productName": "GitKroken",
   "version": "0.1.0",
   "description": "Cliente Git visual de escritorio con grafo de commits",
   "main": "./out/main/index.js",

@@ -30,7 +30,7 @@ const GraphCell = memo(function GraphCell({ row, kind, rowH, text, linked }: Gra
 
   let node
   if (kind === 'wip') {
-    node = <circle className={`g-node-wip ${lane}`} cx={x} cy={y} r={7.5} />
+    node = <circle className={`g-node-wip ${lane}`} cx={x} cy={y} r={10} />
   } else if (kind === 'stash') {
     node = (
       <g className={lane}>
@@ -39,11 +39,11 @@ const GraphCell = memo(function GraphCell({ row, kind, rowH, text, linked }: Gra
       </g>
     )
   } else if (kind === 'merge') {
-    node = <circle className={`g-node-merge ${lane}`} cx={x} cy={y} r={4.5} />
+    node = <circle className={`g-node-merge ${lane}`} cx={x} cy={y} r={5} />
   } else {
     node = (
       <g className={lane}>
-        <circle className="g-node" cx={x} cy={y} r={9} />
+        <circle className="g-node" cx={x} cy={y} r={10} />
         <text className="g-node-text" x={x} y={y}>
           {text}
         </text>
@@ -53,6 +53,7 @@ const GraphCell = memo(function GraphCell({ row, kind, rowH, text, linked }: Gra
 
   return (
     <svg className="g-svg" width="100%" height={rowH} aria-hidden="true">
+      <rect className={`g-band ${lane}`} x={x} y={1} width="100%" height={rowH - 2} />
       {linked && <line className={`g-link ${lane}`} x1={0} y1={y} x2={x} y2={y} />}
       {paths.map((p, i) => (
         <path key={i} className={`g-ln lc-${p.color}${p.dashed ? ' dashed' : ''}`} d={p.d} />
@@ -203,6 +204,7 @@ export const CommitRow = memo(function CommitRow({ commit, row, labels, selected
       </div>
       <div className="g-c g-c-msg" title={commit.subject}>
         {commit.subject || <span className="g-dim">(sin mensaje)</span>}
+        {commit.body && <span className="g-msg-body">{commit.body.split('\n', 1)[0]}</span>}
       </div>
       <div className="g-c g-c-author" title={commit.email ? `${commit.author} <${commit.email}>` : commit.author}>
         {commit.author}

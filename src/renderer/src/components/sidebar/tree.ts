@@ -108,7 +108,7 @@ export function stashIndex(ref: Ref, fallback: number): number {
   return m ? Number(m[1]) : fallback
 }
 
-const COLLAPSED_KEY = 'gitabyss.sidebar.collapsed'
+const COLLAPSED_KEY = 'gitkroken.sidebar.collapsed'
 
 function loadCollapsed(): Set<string> {
   try {

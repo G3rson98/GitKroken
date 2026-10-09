@@ -6,7 +6,7 @@ import { toast } from '../ui/overlays'
 import { errText, openRepoFromDisk } from '../toolbar/actions'
 import './tabs.css'
 
-const CLONE_DIR_KEY = 'gitabyss.cloneDir'
+const CLONE_DIR_KEY = 'gitkroken.cloneDir'
 
 const readCloneDir = (): string => {
   try {
@@ -90,7 +90,7 @@ export function Welcome() {
           <GitBranch size={34} strokeWidth={1.75} />
         </div>
         <h1 className="wl-title">
-          Git<span>Abyss</span>
+          Git<span>Kroken</span>
         </h1>
         <p className="wl-sub">Abre, clona o inicia un repositorio para empezar.</p>
 

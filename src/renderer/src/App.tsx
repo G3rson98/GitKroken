@@ -36,8 +36,8 @@ function useResizable(key: string, initial: number, min: number, max: number, si
 export default function App() {
   const activeRepo = useStore((s) => s.activeRepo)
   const selectedFile = useStore((s) => s.selectedFile)
-  const left = useResizable('gitabyss.leftW', 250, 160, 480, 'left')
-  const right = useResizable('gitabyss.rightW', 360, 260, 640, 'right')
+  const left = useResizable('gitkroken.leftW', 250, 160, 480, 'left')
+  const right = useResizable('gitkroken.rightW', 360, 260, 640, 'right')
 
   useEffect(() => initStore(), [])
 

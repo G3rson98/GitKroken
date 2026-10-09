@@ -6,9 +6,9 @@ import { toast } from './components/ui/overlays'
 /** Pseudo-hash of the "work in progress" row at the top of the graph */
 export const WIP = 'WIP'
 const PAGE = 2000
-const TABS_KEY = 'gitabyss.tabs'
-const ACTIVE_KEY = 'gitabyss.active'
-const RECENT_KEY = 'gitabyss.recent'
+const TABS_KEY = 'gitkroken.tabs'
+const ACTIVE_KEY = 'gitkroken.active'
+const RECENT_KEY = 'gitkroken.recent'
 
 export interface RepoTab {
   path: string

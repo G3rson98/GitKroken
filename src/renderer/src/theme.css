@@ -1,16 +1,17 @@
 :root {
-  --bg-0: #16181d; /* deepest: tab bar, gutters */
-  --bg-1: #1b1d23; /* app background, graph */
-  --bg-2: #22252c; /* panels */
-  --bg-3: #2b2f38; /* raised: toolbar, headers, inputs */
-  --bg-hover: #323743;
-  --bg-selected: #2f4a5c;
-  --border: #0f1014;
-  --border-soft: #353a45;
-  --text: #d5d8de;
-  --text-dim: #8b919e;
-  --text-faint: #5d6370;
+  --bg-0: #0b0b0b; /* deepest: tab bar, gutters */
+  --bg-1: #101010; /* app background, graph */
+  --bg-2: #1b1b1b; /* panels */
+  --bg-3: #242424; /* raised: toolbar, headers, inputs */
+  --bg-hover: #2e2e2e;
+  --bg-selected: #1b2b55;
+  --border: #000;
+  --border-soft: #383838;
+  --text: #e6e6e6;
+  --text-dim: #9c9c9c;
+  --text-faint: #666;
   --accent: #19b5c8; /* teal */
+  --blue: #6ea8ff;
   --accent-hover: #24cbe0;
   --green: #3fb950;
   --red: #e5534b;
@@ -30,8 +31,8 @@
   --lane-9: #2ece9d;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --mono: 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-  --toolbar-h: 52px;
-  --tabbar-h: 34px;
+  --toolbar-h: 50px;
+  --tabbar-h: 32px;
   --row-h: 28px;
 }
 
@@ -40,7 +41,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg-1);
   color: var(--text);
-  font: 13px/1.4 var(--font);
+  font: 12px/1.4 var(--font);
   overflow: hidden;
   user-select: none;
   -webkit-font-smoothing: antialiased;
@@ -52,8 +53,8 @@ input, textarea {
 }
 input:focus, textarea:focus { border-color: var(--accent); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background-color: #4b5160; }
+::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #505050; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
 .btn {

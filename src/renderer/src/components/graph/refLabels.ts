@@ -107,25 +107,13 @@ export function initials(author: string): string {
   return (first + last).toUpperCase()
 }
 
-const timeFmt = new Intl.DateTimeFormat('es', { hour: '2-digit', minute: '2-digit' })
-const dayFmt = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' })
-const yearFmt = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' })
 const fullFmt = new Intl.DateTimeFormat('es', { dateStyle: 'full', timeStyle: 'short' })
 
-const startOfDay = (ms: number): number => {
-  const d = new Date(ms)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
-
-/** Short date for the DATE column: "hoy 14:32", "ayer 09:10", "3 mar 18:04", "3 mar 2024" */
-export function formatDate(sec: number, now: number = Date.now()): string {
-  const ms = sec * 1000
-  const days = Math.round((startOfDay(now) - startOfDay(ms)) / 86_400_000)
-  if (days === 0) return `hoy ${timeFmt.format(ms)}`
-  if (days === 1) return `ayer ${timeFmt.format(ms)}`
-  if (new Date(ms).getFullYear() === new Date(now).getFullYear()) return `${dayFmt.format(ms)} ${timeFmt.format(ms)}`
-  return yearFmt.format(ms)
+/** Date for the DATE column: "17/09/2026 @ 7:38" */
+export function formatDate(sec: number): string {
+  const d = new Date(sec * 1000)
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} @ ${d.getHours()}:${p2(d.getMinutes())}`
 }
 
 export const formatFullDate = (sec: number): string => fullFmt.format(sec * 1000)

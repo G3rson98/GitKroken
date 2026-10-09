@@ -8,7 +8,7 @@ import { buildTree, flattenTree } from './fileTree'
 
 export type FileViewMode = 'path' | 'tree'
 export const FILE_VIEWS = ['path', 'tree'] as const
-export const FILE_VIEW_KEY = 'gitabyss.fileView'
+export const FILE_VIEW_KEY = 'gitkroken.fileView'
 
 /** Rows rendered before the "show more" button (keeps huge change sets responsive) */
 const PAGE = 400

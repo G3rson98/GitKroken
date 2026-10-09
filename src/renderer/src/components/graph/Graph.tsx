@@ -26,7 +26,7 @@ const OVERSCAN = 8
 const CHUNK = 4
 /** Ask for the next page when this many rows are left below the viewport */
 const LOAD_AHEAD = 40
-const COLS_KEY = 'gitabyss.graph.cols'
+const COLS_KEY = 'gitkroken.graph.cols'
 
 type ColKey = 'refs' | 'graph' | 'author' | 'date' | 'sha'
 
@@ -39,7 +39,7 @@ interface Cols {
   sha: number
 }
 
-const DEFAULT_COLS: Cols = { refs: 160, graph: null, author: 130, date: 124, sha: 74 }
+const DEFAULT_COLS: Cols = { refs: 160, graph: null, author: 150, date: 150, sha: 74 }
 const LIMITS: Record<ColKey, [number, number]> = {
   refs: [70, 480],
   graph: [34, 1200],

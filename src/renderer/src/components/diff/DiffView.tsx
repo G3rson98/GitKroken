@@ -14,7 +14,7 @@ import { wordDiff, type Segment, type WordDiff } from './wordDiff'
 import './DiffView.css'
 
 const MODES = ['hunk', 'inline', 'split'] as const
-const MODE_KEY = 'gitabyss.diffMode'
+const MODE_KEY = 'gitkroken.diffMode'
 /** Longer lines are cut on screen (minified bundles would freeze the layout) */
 const MAX_CHARS = 3000
 

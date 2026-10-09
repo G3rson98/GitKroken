@@ -22,7 +22,7 @@ const ENV: Record<string, string> = {
 }
 
 const tmp = (): string => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'gitabyss-ui-')))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'gitkroken-ui-')))
   roots.push(dir)
   return dir
 }
