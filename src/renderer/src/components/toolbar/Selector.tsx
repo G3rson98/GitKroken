@@ -1,4 +1,4 @@
-// Breadcrumb-style dropdown selector used in the toolbar ("repositorio" / "rama"):
+// Breadcrumb-style dropdown selector used in the toolbar ("repository" / "branch"):
 // a caption over the current value; clicking opens a filterable list.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown } from 'lucide-react'

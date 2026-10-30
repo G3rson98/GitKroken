@@ -286,8 +286,8 @@ describe.skipIf(!hasGit())('single-hunk patches through git apply', () => {
   })
 
   it('handles paths that git quotes', () => {
-    const name = 'dir ñ/tab\there.txt'
-    execFileSync('mkdir', ['-p', join(repo, 'dir ñ')])
+    const name = 'dir ï/tab\there.txt'
+    execFileSync('mkdir', ['-p', join(repo, 'dir ï')])
     write(name, numbered(30))
     git(['add', '.'])
     git(['commit', '-q', '-m', 'init'])

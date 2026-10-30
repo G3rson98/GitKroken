@@ -965,7 +965,7 @@ describe('profiles', () => {
   })
 
   it('creates, edits, activates and deletes profiles', async () => {
-    const work = await hostingApi.saveProfile({ name: 'Trabajo', userName: 'Ana Pérez', userEmail: 'ana@empresa.com' })
+    const work = await hostingApi.saveProfile({ name: 'Work', userName: 'Ana Pérez', userEmail: 'ana@company.com' })
     const personal = await hostingApi.saveProfile({ name: ' Personal ', userName: ' ana ', userEmail: ' ana@example.org ' })
     expect(work.id).toBeTruthy()
     expect(personal).toEqual({ id: personal.id, name: 'Personal', userName: 'ana', userEmail: 'ana@example.org' })
@@ -975,9 +975,9 @@ describe('profiles', () => {
 
     await hostingApi.activateProfile(work.id)
     expect((await hostingApi.profiles()).activeId).toBe(work.id)
-    expect(activeIdentity()).toEqual({ name: 'Ana Pérez', email: 'ana@empresa.com' })
+    expect(activeIdentity()).toEqual({ name: 'Ana Pérez', email: 'ana@company.com' })
 
-    const edited = await hostingApi.saveProfile({ id: work.id, name: 'Trabajo', userName: 'Ana P.', userEmail: 'ana.p@empresa.com' })
+    const edited = await hostingApi.saveProfile({ id: work.id, name: 'Work', userName: 'Ana P.', userEmail: 'ana.p@empresa.com' })
     expect(edited.id).toBe(work.id)
     expect((await hostingApi.profiles()).profiles).toEqual([edited, personal])
     expect(activeIdentity()).toEqual({ name: 'Ana P.', email: 'ana.p@empresa.com' }) // edits apply to the active profile
@@ -995,19 +995,19 @@ describe('profiles', () => {
   })
 
   it('persists across restarts in a JSON file under userData', async () => {
-    const p = await hostingApi.saveProfile({ name: 'Trabajo', userName: 'Ana', userEmail: 'ana@empresa.com' })
+    const p = await hostingApi.saveProfile({ name: 'Work', userName: 'Ana', userEmail: 'ana@company.com' })
     await hostingApi.activateProfile(p.id)
     const file = join(userData, 'profiles.json')
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ version: 1, profiles: [p], activeId: p.id })
     useEnv()
-    expect(activeIdentity()).toEqual({ name: 'Ana', email: 'ana@empresa.com' }) // sync, loaded lazily
+    expect(activeIdentity()).toEqual({ name: 'Ana', email: 'ana@company.com' }) // sync, loaded lazily
     expect(await hostingApi.profiles()).toEqual({ profiles: [p], activeId: p.id })
   })
 
   it('validates input', async () => {
     expect(await failure(hostingApi.saveProfile({ name: 'x', userName: '', userEmail: 'a@b.c' }))).toMatch(/user\.name/)
     expect(await failure(hostingApi.saveProfile({ name: 'x', userName: 'Ana', userEmail: '' }))).toMatch(/user\.email/)
-    for (const email of ['ana', 'ana@', '@empresa.com', 'ana @empresa.com', 'ana@emp resa.com', '<ana@empresa.com>']) {
+    for (const email of ['ana', 'ana@', '@empresa.com', 'ana @empresa.com', 'ana@emp resa.com', '<ana@company.com>']) {
       expect(await failure(hostingApi.saveProfile({ name: 'x', userName: 'Ana', userEmail: email })), email).toMatch(/email address is not valid/)
     }
     expect(await failure(hostingApi.saveProfile({ name: 'x', userName: 'Ana <x>', userEmail: 'a@b.c' }))).toMatch(/cannot contain/)
@@ -1039,7 +1039,7 @@ describe('profiles', () => {
 
   it('never touches the git configuration', async () => {
     const before = sh(emptyRepo(), 'config', '--global', '--list')
-    const p = await hostingApi.saveProfile({ name: 'Trabajo', userName: 'Otra Persona', userEmail: 'otra@empresa.com' })
+    const p = await hostingApi.saveProfile({ name: 'Work', userName: 'Otra Persona', userEmail: 'otra@empresa.com' })
     await hostingApi.activateProfile(p.id)
     expect(sh(emptyRepo(), 'config', '--global', '--list')).toBe(before)
     expect(before).toContain('user.name=Test User')

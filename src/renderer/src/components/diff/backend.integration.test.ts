@@ -158,16 +158,16 @@ describe('hunk staging through the backend', () => {
 describe('what the backend returns for each kind of file', () => {
   it('untracked text, untracked binary and empty files', async () => {
     const repo = newRepo({ 'a.txt': 'a\n' })
-    write(repo, 'docs/nuevo archivo.md', '# título\n\ntexto\n')
+    write(repo, 'docs/new file.md', '# café menu\n\ntext\n')
     write(repo, 'img.bin', Buffer.from([0, 1, 2, 3, 0, 255, 254]))
     write(repo, 'empty.txt', '')
 
-    const text = (await load(repo, { path: 'docs/nuevo archivo.md', untracked: true }))!
-    expect(text).toMatchObject({ status: 'added', newPath: 'docs/nuevo archivo.md', oldPath: null, binary: false })
+    const text = (await load(repo, { path: 'docs/new file.md', untracked: true }))!
+    expect(text).toMatchObject({ status: 'added', newPath: 'docs/new file.md', oldPath: null, binary: false })
     expect(text.hunks[0].lines.map((l) => [l.type, l.newNo, l.text])).toEqual([
-      ['add', 1, '# título'],
+      ['add', 1, '# café menu'],
       ['add', 2, ''],
-      ['add', 3, 'texto']
+      ['add', 3, 'text']
     ])
 
     const bin = (await load(repo, { path: 'img.bin', untracked: true }))!

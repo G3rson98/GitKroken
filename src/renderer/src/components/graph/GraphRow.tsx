@@ -76,7 +76,7 @@ function pillTitle(label: RefLabel): string {
     case 'local': {
       const { upstream, ahead = 0, behind = 0 } = label.local ?? {}
       let text = (label.isCurrent ? 'Current branch: ' : 'Local branch: ') + label.name
-      if (label.remote) text += `\nSincronizada con ${label.remote.name}`
+      if (label.remote) text += `\nIn sync with ${label.remote.name}`
       else if (upstream && ahead + behind > 0) text += `\n${upstream}: ↑${ahead} ↓${behind}`
       return text
     }

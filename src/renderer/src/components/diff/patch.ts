@@ -106,7 +106,7 @@ export function patchHeader(file: DiffFile, opts: HunkPatchOptions = {}): string
 export function buildHunkPatch(file: DiffFile, hunkIndex: number, opts: HunkPatchOptions = {}): string {
   const hunk = file.hunks[hunkIndex]
   if (!hunk) throw new Error(`Hunk ${hunkIndex} fuera de rango`)
-  if (file.binary) throw new Error('No se puede aplicar un hunk de un archivo binario')
-  if (file.combined) throw new Error('No se puede aplicar un hunk de un diff combinado')
+  if (file.binary) throw new Error('Cannot apply a hunk of a binary file')
+  if (file.combined) throw new Error('Cannot apply a hunk of a combined diff')
   return [...patchHeader(file, opts), serializeHunk(hunk, opts)].join('\n') + '\n'
 }

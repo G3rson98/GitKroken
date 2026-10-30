@@ -408,21 +408,21 @@ describe('robustness', () => {
     ] as const) {
       sh(repo, 'config', key, value)
     }
-    commitFiles(repo, { 'ñandú.txt': lines(20), 'old.txt': lines(30, 'row') }, 'base ✓')
+    commitFiles(repo, { 'naïve.txt': lines(20), 'old.txt': lines(30, 'row') }, 'base ✓')
     sh(repo, 'mv', 'old.txt', 'moved.txt')
-    write(repo, 'ñandú.txt', lines(20).replace('line 2\n', 'line two\n'))
+    write(repo, 'naïve.txt', lines(20).replace('line 2\n', 'line two\n'))
     write(repo, 'untracked ü.txt', 'u\n')
 
     const st = await api.status(repo)
     expect(st.staged).toEqual([{ path: 'moved.txt', oldPath: 'old.txt', status: 'renamed' }])
     expect(st.unstaged.sort((a, b) => a.path.localeCompare(b.path))).toEqual([
-      { path: 'ñandú.txt', status: 'modified' },
+      { path: 'naïve.txt', status: 'modified' },
       { path: 'untracked ü.txt', status: 'untracked' }
     ])
 
-    const d = await api.diff(repo, { path: 'ñandú.txt' })
-    expect(d).toContain('diff --git a/ñandú.txt b/ñandú.txt')
-    expect(d).toContain('--- a/ñandú.txt\n+++ b/ñandú.txt')
+    const d = await api.diff(repo, { path: 'naïve.txt' })
+    expect(d).toContain('diff --git a/naïve.txt b/naïve.txt')
+    expect(d).toContain('--- a/naïve.txt\n+++ b/naïve.txt')
     // eslint-disable-next-line no-control-regex
     expect(d).not.toMatch(/\x1b\[/)
     expect(await api.diff(repo, { path: 'moved.txt', oldPath: 'old.txt', staged: true })).toContain('rename to moved.txt')

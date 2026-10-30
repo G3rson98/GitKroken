@@ -334,8 +334,8 @@ export const MIN_SHA_PREFIX = 4
 
 /**
  * git folds case with the C library, and every command runs under LC_ALL=C
- * (exec.ts), where only ASCII letters fold: "CORRECCIÓN" would not match
- * "corrección". A UTF-8 locale fixes that; if the system lacks it, git simply
+ * (exec.ts), where only ASCII letters fold: "RÉSUMÉ" would not match
+ * "résumé". A UTF-8 locale fixes that; if the system lacks it, git simply
  * stays in the C locale.
  */
 const UTF8_LOCALE = process.platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'

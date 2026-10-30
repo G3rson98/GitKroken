@@ -138,7 +138,7 @@ describe('blame', () => {
       `${'a'.repeat(40)} 1 1 1`,
       'filename other.txt',
       '  trailing spaces  ',
-      'ñandú 日本語'
+      'zoë 日本語'
     ]
     commitFiles(repo, { 'weird.txt': content.join('\n') + '\n' }, 'weird')
     const out = await api.blame(repo, 'weird.txt')
@@ -148,9 +148,9 @@ describe('blame', () => {
 
   it('works for paths with spaces, brackets and non-ASCII characters', async () => {
     const repo = emptyRepo()
-    const a = commitFiles(repo, { 'dir with space/[id] añadir *.txt': 'x\n', 'dir with space/a.txt': 'no\n' }, 'odd names')
-    const out = await api.blame(repo, 'dir with space/[id] añadir *.txt')
-    expect(out).toEqual([{ hash: a, author: 'Test User', date: expect.any(Number), summary: 'odd names', lineNo: 1, text: 'x', path: 'dir with space/[id] añadir *.txt' }])
+    const a = commitFiles(repo, { 'dir with space/[id] naïve *.txt': 'x\n', 'dir with space/a.txt': 'no\n' }, 'odd names')
+    const out = await api.blame(repo, 'dir with space/[id] naïve *.txt')
+    expect(out).toEqual([{ hash: a, author: 'Test User', date: expect.any(Number), summary: 'odd names', lineNo: 1, text: 'x', path: 'dir with space/[id] naïve *.txt' }])
   })
 
   it('rejects binary files, unknown paths and unknown revisions', async () => {
@@ -434,9 +434,9 @@ describe('fileAt', () => {
 
   it('handles empty files and unusual names', async () => {
     const repo = emptyRepo()
-    commitFiles(repo, { 'empty.txt': '', 'a b/[x] ñ.txt': 'ñandú\n', 'a:b.txt': 'colon\n' }, 'files')
+    commitFiles(repo, { 'empty.txt': '', 'a b/[x] ï.txt': 'naïve\n', 'a:b.txt': 'colon\n' }, 'files')
     expect(await api.fileAt(repo, 'empty.txt', 'HEAD')).toBe('')
-    expect(await api.fileAt(repo, 'a b/[x] ñ.txt', 'HEAD')).toBe('ñandú\n')
+    expect(await api.fileAt(repo, 'a b/[x] ï.txt', 'HEAD')).toBe('naïve\n')
     expect(await api.fileAt(repo, 'a:b.txt', 'HEAD')).toBe('colon\n')
   })
 
@@ -461,14 +461,14 @@ describe('listFiles', () => {
   it('lists the whole tree of a revision, not only what it changed', async () => {
     const repo = emptyRepo()
     const a = commitFiles(repo, { 'a.txt': 'a\n', 'src/b.ts': 'b\n', 'src/deep/c.ts': 'c\n' }, 'first')
-    const b = commitFiles(repo, { 'a.txt': 'a2\n', 'a b/ñ [x].txt': 'n\n' }, 'second')
+    const b = commitFiles(repo, { 'a.txt': 'a2\n', 'a b/ï [x].txt': 'n\n' }, 'second')
     sh(repo, 'rm', '-q', 'src/b.ts')
     commitFiles(repo, {}, 'remove b')
     write(repo, 'untracked.txt', 'u\n')
 
     expect(await api.listFiles(repo, a)).toEqual(['a.txt', 'src/b.ts', 'src/deep/c.ts'])
-    expect(await api.listFiles(repo, b)).toEqual(['a b/ñ [x].txt', 'a.txt', 'src/b.ts', 'src/deep/c.ts'])
-    expect(await api.listFiles(repo, 'HEAD')).toEqual(['a b/ñ [x].txt', 'a.txt', 'src/deep/c.ts'])
+    expect(await api.listFiles(repo, b)).toEqual(['a b/ï [x].txt', 'a.txt', 'src/b.ts', 'src/deep/c.ts'])
+    expect(await api.listFiles(repo, 'HEAD')).toEqual(['a b/ï [x].txt', 'a.txt', 'src/deep/c.ts'])
   })
 
   it('lists the root tree even when the repository is opened from a subfolder', async () => {
@@ -496,7 +496,7 @@ describe('searchCommits', () => {
     c.special = commitAs(repo, 'Ada Lovelace', 'ada@example.com', { 'a.txt': '3\n' }, 'Handle a[0].b* and v1.0 (regex chars)')
     c.dots = commitAs(repo, 'Ada Lovelace', 'ada@example.com', { 'a.txt': '4\n' }, 'Bump to v1x0, see a0b')
     c.body = commitAs(repo, 'Carol [Bot]', 'carol+bot@corp.io', { 'a.txt': '5\n' }, 'Refactor parser\n\nMentions the LOGIN flow in the body')
-    c.accent = commitAs(repo, 'Ñandú Pérez', 'nandu@example.com', { 'a.txt': '6\n' }, 'CORRECCIÓN de la sesión')
+    c.accent = commitAs(repo, 'Zoë Brontë', 'zoe@example.com', { 'a.txt': '6\n' }, 'RÉSUMÉ for the café meeting')
     c.bobName = commitAs(repo, 'Ada Lovelace', 'ada@example.com', { 'a.txt': '7\n' }, 'Thanks bob for the review')
     return { repo, c }
   }
@@ -549,9 +549,9 @@ describe('searchCommits', () => {
 
   it('folds the case of non-ASCII letters too', async () => {
     const { repo, c } = searchRepo()
-    expect(await api.searchCommits(repo, 'CORRECCIÓN')).toEqual([c.accent])
-    expect(await api.searchCommits(repo, 'Ñandú')).toEqual([c.accent])
-    // Folding Ó/ó needs a UTF-8 locale in the C library; without one git only folds ASCII.
+    expect(await api.searchCommits(repo, 'RÉSUMÉ')).toEqual([c.accent])
+    expect(await api.searchCommits(repo, 'Zoë')).toEqual([c.accent])
+    // Folding É/é needs a UTF-8 locale in the C library; without one git only folds ASCII.
     const wanted = process.platform === 'darwin' ? 'en_US.UTF-8' : 'C.UTF-8'
     let locales = ''
     try {
@@ -560,10 +560,10 @@ describe('searchCommits', () => {
       /* no `locale` tool: assume the locale is missing */
     }
     if (!locales.split('\n').some((l) => l.trim().toLowerCase().replace('utf8', 'utf-8') === wanted.toLowerCase())) return
-    expect(await api.searchCommits(repo, 'corrección')).toEqual([c.accent])
-    expect(await api.searchCommits(repo, 'ñandú')).toEqual([c.accent])
-    expect(await api.searchCommits(repo, 'ÑANDÚ')).toEqual([c.accent])
-    expect(await api.searchCommits(repo, 'Sesión')).toEqual([c.accent])
+    expect(await api.searchCommits(repo, 'résumé')).toEqual([c.accent])
+    expect(await api.searchCommits(repo, 'zoë')).toEqual([c.accent])
+    expect(await api.searchCommits(repo, 'ZOË')).toEqual([c.accent])
+    expect(await api.searchCommits(repo, 'Café')).toEqual([c.accent])
   })
 
   it('matches a full or abbreviated SHA when the query is hexadecimal', async () => {

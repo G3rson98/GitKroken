@@ -174,9 +174,9 @@ describe('createMatcher', () => {
   })
 
   it('folds the case of non-ASCII letters', () => {
-    const c = commit('1', 'CORRECCIÓN de la sesión', { author: 'Ñandú Pérez' })
-    for (const q of ['corrección', 'CORRECCIÓN', 'Sesión', 'ñandú', 'ÑANDÚ']) expect(createMatcher(q)!.test(c), q).toBe(true)
-    expect(createMatcher('correccion')!.test(c)).toBe(false) // accents are not folded (nor does git)
+    const c = commit('1', 'RÉSUMÉ for the café meeting', { author: 'Zoë Brontë' })
+    for (const q of ['résumé', 'RÉSUMÉ', 'Café', 'zoë', 'ZOË']) expect(createMatcher(q)!.test(c), q).toBe(true)
+    expect(createMatcher('resume')!.test(c)).toBe(false) // accents are not folded (nor does git)
   })
 
   it('matches the start of the SHA for hexadecimal queries of 4+ characters', () => {
@@ -224,9 +224,9 @@ describe('match highlighting', () => {
   })
 
   it('keeps offsets right around non-ASCII text', () => {
-    const text = 'Añadir CORRECCIÓN — sesión 日本語 sesión'
-    const ranges = createMatcher('SESIÓN')!.ranges(text)
-    expect(ranges.map(([a, b]) => text.slice(a, b))).toEqual(['sesión', 'sesión'])
+    const text = 'Naïve RÉSUMÉ — café 日本語 café'
+    const ranges = createMatcher('CAFÉ')!.ranges(text)
+    expect(ranges.map(([a, b]) => text.slice(a, b))).toEqual(['café', 'café'])
     expect(createMatcher('ó')!.ranges('ÓóO')).toEqual([
       [0, 1],
       [1, 2]
