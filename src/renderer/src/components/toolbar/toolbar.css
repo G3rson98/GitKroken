@@ -6,8 +6,8 @@
   align-items: center;
   gap: 12px;
   padding: 0 8px;
-  background: var(--bg-0);
-  border-bottom: 1px solid var(--bg-3);
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border);
   position: relative;
   z-index: 20; /* dropdown panels overlap the panels below */
 }
@@ -106,7 +106,7 @@
   color: var(--text);
 }
 .tool-btn:hover:not(:disabled) { background: var(--bg-hover); }
-.tool-btn:active:not(:disabled) { background: var(--bg-2); }
+.tool-btn:active:not(:disabled) { background: var(--bg-0); }
 .tool-btn:disabled { color: var(--text-faint); cursor: default; }
 .tool-btn-icon { position: relative; display: grid; place-items: center; height: 20px; }
 .tool-btn-label { font-size: 11px; line-height: 1.2; color: var(--text-dim); }

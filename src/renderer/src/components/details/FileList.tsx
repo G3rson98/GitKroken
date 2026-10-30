@@ -24,6 +24,8 @@ export interface FileListProps {
   /** Buttons shown on hover at the right of a folder row (tree view) */
   folderActions?: (files: FileChange[]) => ReactNode
   emptyText?: string
+  /** Files listed for context only ("View all files"): no status icon, dimmed */
+  isUnchanged?: (file: FileChange) => boolean
 }
 
 const stop = (e: MouseEvent) => e.stopPropagation()
@@ -46,27 +48,30 @@ export function FileList(props: FileListProps) {
   const count = flat ? flat.length : files.length
   if (count === 0) return props.emptyText ? <div className="fl-empty">{props.emptyText}</div> : null
 
-  const fileRow = (file: FileChange, depth: number, name: string, dir: string, key: string) => (
-    <div
-      key={key}
-      className={`fl-row${props.isSelected(file) ? ' selected' : ''}`}
-      style={{ paddingLeft: 8 + depth * 14 }}
-      title={file.oldPath && file.oldPath !== file.path ? `${file.oldPath} → ${file.path}` : file.path}
-      onClick={() => props.onOpen(file)}
-      onContextMenu={props.onContextMenu ? (e) => props.onContextMenu!(e, file) : undefined}
-    >
-      <StatusIcon status={file.status} />
-      <span className="fl-path">
-        {dir && <span className="fl-dir">{dir}</span>}
-        <span className="fl-name">{name}</span>
-      </span>
-      {props.actions && (
-        <span className="fl-actions" onClick={stop} onDoubleClick={stop}>
-          {props.actions(file)}
+  const fileRow = (file: FileChange, depth: number, name: string, dir: string, key: string) => {
+    const unchanged = props.isUnchanged?.(file) ?? false
+    return (
+      <div
+        key={key}
+        className={`fl-row${props.isSelected(file) ? ' selected' : ''}${unchanged ? ' unchanged' : ''}`}
+        style={{ paddingLeft: 8 + depth * 14 }}
+        title={file.oldPath && file.oldPath !== file.path ? `${file.oldPath} → ${file.path}` : file.path}
+        onClick={() => props.onOpen(file)}
+        onContextMenu={props.onContextMenu ? (e) => props.onContextMenu!(e, file) : undefined}
+      >
+        {unchanged ? <span className="fs-icon fs-none" /> : <StatusIcon status={file.status} />}
+        <span className="fl-path">
+          {dir && <span className="fl-dir">{dir}</span>}
+          <span className="fl-name">{name}</span>
         </span>
-      )}
-    </div>
-  )
+        {props.actions && (
+          <span className="fl-actions" onClick={stop} onDoubleClick={stop}>
+            {props.actions(file)}
+          </span>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="fl">

@@ -457,6 +457,34 @@ describe('fileAt', () => {
   })
 })
 
+describe('listFiles', () => {
+  it('lists the whole tree of a revision, not only what it changed', async () => {
+    const repo = emptyRepo()
+    const a = commitFiles(repo, { 'a.txt': 'a\n', 'src/b.ts': 'b\n', 'src/deep/c.ts': 'c\n' }, 'first')
+    const b = commitFiles(repo, { 'a.txt': 'a2\n', 'a b/ñ [x].txt': 'n\n' }, 'second')
+    sh(repo, 'rm', '-q', 'src/b.ts')
+    commitFiles(repo, {}, 'remove b')
+    write(repo, 'untracked.txt', 'u\n')
+
+    expect(await api.listFiles(repo, a)).toEqual(['a.txt', 'src/b.ts', 'src/deep/c.ts'])
+    expect(await api.listFiles(repo, b)).toEqual(['a b/ñ [x].txt', 'a.txt', 'src/b.ts', 'src/deep/c.ts'])
+    expect(await api.listFiles(repo, 'HEAD')).toEqual(['a b/ñ [x].txt', 'a.txt', 'src/deep/c.ts'])
+  })
+
+  it('lists the root tree even when the repository is opened from a subfolder', async () => {
+    const repo = emptyRepo()
+    commitFiles(repo, { 'top.txt': 't\n', 'sub/x.txt': 'x\n' }, 'files')
+    expect(await api.listFiles(join(repo, 'sub'), 'HEAD')).toEqual(['sub/x.txt', 'top.txt'])
+  })
+
+  it('rejects unknown and option-like revisions', async () => {
+    const repo = emptyRepo()
+    commitFiles(repo, { 'a.txt': 'a\n' }, 'first')
+    await expect(api.listFiles(repo, 'nope')).rejects.toThrow(/Revision not found/)
+    await expect(api.listFiles(repo, '--all')).rejects.toThrow(/must not start with "-"/)
+  })
+})
+
 // --- commit search ---------------------------------------------------------------
 
 describe('searchCommits', () => {

@@ -298,6 +298,20 @@ async function fileAt(repo: string, path: string, rev: string): Promise<string |
   return content
 }
 
+/** Trees bigger than this are cut (the list would only freeze the UI) */
+export const MAX_TREE_FILES = 200_000
+
+/** Paths of every entry in the tree of `rev` (the whole project, not only what the commit changed). */
+async function listFiles(repo: string, rev: string): Promise<string[]> {
+  assertRef(rev, 'revision')
+  const commit = await runGit(repo, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { okCodes: [0, 1] })
+  if (commit.code !== 0) throw new Error(`Revision not found: ${rev}`)
+  // -z: paths come raw (no quoting of spaces / non-ASCII names)
+  const out = await git(repo, ['ls-tree', '-r', '-z', '--full-tree', '--name-only', commit.stdout.trim()])
+  const paths = out.split('\0').filter(Boolean)
+  return paths.length > MAX_TREE_FILES ? paths.slice(0, MAX_TREE_FILES) : paths
+}
+
 // --- commit search ---------------------------------------------------------------
 
 /**
@@ -425,9 +439,10 @@ async function searchCommits(repo: string, query: string, opts?: { limit?: numbe
 
 // --- the API object --------------------------------------------------------------
 
-export const historyApi: Pick<GitApi, 'blame' | 'fileHistory' | 'fileAt' | 'searchCommits'> = {
+export const historyApi: Pick<GitApi, 'blame' | 'fileHistory' | 'fileAt' | 'listFiles' | 'searchCommits'> = {
   blame,
   fileHistory,
   fileAt,
+  listFiles,
   searchCommits
 }

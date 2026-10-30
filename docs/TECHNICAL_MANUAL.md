@@ -27,7 +27,7 @@ For developers who maintain or extend GitKroken. It covers how the app is built,
 |---|---|
 | What it is | A desktop Git client with a GitKraken-style interface: commit graph, staging, diff viewer, conflict editor, interactive rebase, undo/redo, blame, file history, search, hosting integration. |
 | Stack | Electron 39, React 18, TypeScript 5, Vite 5 (through electron-vite), zustand, shiki, lucide-react. No Git library: it runs the system `git`. |
-| Size | About 31,000 lines of TypeScript; 29 test files, 604 tests. |
+| Size | About 31,000 lines of TypeScript; 29 test files, 609 tests. |
 | Language | English only (UI, messages, docs). |
 | Platforms | Built and tested on macOS (Apple Silicon, git 2.39, Node 20.11). Windows and Linux code paths exist but are untested. |
 | Packaging | None. It runs from source with `npm run dev` or `npm start`. |
@@ -182,7 +182,7 @@ CSS class prefixes are per component so files never collide: `g-` graph, `sb-` s
 
 **`rebase.ts`** — section 8.4 and 8.5.
 
-**`history.ts`** — `blame` parses `--porcelain`; without `rev` it blames the working tree, so uncommitted lines come back with the all-zero hash. No `-w`, `-M` or `-C`. `fileHistory` uses `--follow` and pages in JavaScript because `--follow --skip` is unreliable across renames. `searchCommits` merges separate message and author searches (literal, case-insensitive) plus a SHA-prefix lookup, under a UTF-8 locale so accented text folds correctly.
+**`history.ts`** — `blame` parses `--porcelain`; without `rev` it blames the working tree, so uncommitted lines come back with the all-zero hash. No `-w`, `-M` or `-C`. `fileHistory` uses `--follow` and pages in JavaScript because `--follow --skip` is unreliable across renames. `listFiles` is `git ls-tree -r -z --full-tree --name-only` on the resolved commit (the whole tree, whatever subfolder the repository was opened from), cut at 200,000 paths. `searchCommits` merges separate message and author searches (literal, case-insensitive) plus a SHA-prefix lookup, under a UTF-8 locale so accented text folds correctly.
 
 **`extras.ts`** — submodules (`status --recursive` + `.gitmodules`), worktrees (`list --porcelain`), LFS. `lfsInstall` is always `--local`. Worktree removal refuses the main worktree, the open one and locked ones.
 
@@ -205,7 +205,7 @@ Defined in `src/shared/types.ts`; the doc comments there are authoritative. Grou
 | Network control | `cancel`, `answerCredential` |
 | Conflicts | `conflictFile`, `resolveConflict`, `resolveWith` |
 | Rebase and undo | `rebaseTodo`, `rebaseInteractive`, `undoState`, `undo`, `redo` |
-| History | `blame`, `fileHistory`, `fileAt`, `searchCommits` |
+| History | `blame`, `fileHistory`, `fileAt`, `listFiles`, `searchCommits` |
 | Extras | `submodules`, `submoduleUpdate`, `submoduleAdd`, `worktrees`, `worktreeAdd`, `worktreeRemove`, `lfsInfo`, `lfsInstall`, `lfsTrack`, `lfsUntrack`, `lfsPull` |
 | Hosting and profiles | `accounts`, `addAccount`, `removeAccount`, `hostedRepo`, `pullRequests`, `createPullRequest`, `issues`, `createIssue`, `profiles`, `saveProfile`, `deleteProfile`, `activateProfile` |
 | Misc | `reveal`, `openInTerminal`, `openExternal` |
@@ -228,7 +228,7 @@ Conventions that matter when calling it:
 | `commits`, `hasMore`, `refs`, `remotes`, `status` | Data of the active repository. |
 | `selected` | A commit hash, `WIP`, or null. |
 | `selectedFile` | When set, the centre shows the diff viewer. |
-| `view` | Centre view: `graph`, `conflict`, `rebase`, `blame`, `fileHistory`. |
+| `view` | Centre view: `graph`, `conflict`, `rebase`, `blame`, `fileHistory`, `file` (one file at a commit, read only). |
 | `loading`, `busy` | Refresh in progress; label of the running mutation. |
 
 Actions: `openRepo`, `closeTab`, `setActive`, `refresh`, `loadMore`, `select`, `selectFile`, `openView`, `run`.
@@ -243,11 +243,11 @@ Imperative helpers used everywhere: `showContextMenu(event, items)`, `formDialog
 
 ### 7.3 Layout (`App.tsx`)
 
-Tab bar; toolbar; then three columns with draggable separators: sidebar, centre, right panel. The centre renders, in order of precedence, the conflict editor, the interactive rebase view, blame, file history, the diff viewer, or the graph.
+Tab bar; toolbar; then three columns with draggable separators: sidebar, centre, right panel. The centre renders, in order of precedence, the conflict editor, the interactive rebase view, blame, file history, the file-at-commit view (`history/FileView.tsx`), the diff viewer, or the graph.
 
 ### 7.4 Persisted keys
 
-All in `localStorage`, prefixed `gitkroken.`: `tabs`, `active`, `recent`, `leftW`, `rightW`, `graph.cols`, `sidebar.collapsed`, `extras.open`, `hosting.collapsed`, `diffMode`, `fileView`, `historyDiffMode`, `historyListW`, `conflictSplit`, `cloneDir`.
+All in `localStorage`, prefixed `gitkroken.`: `tabs`, `active`, `recent`, `leftW`, `rightW`, `graph.cols`, `sidebar.collapsed`, `extras.open`, `hosting.collapsed`, `diffMode`, `fileView`, `allFiles`, `historyDiffMode`, `historyListW`, `conflictSplit`, `cloneDir`.
 
 In the Electron user-data folder: `hosting-accounts.json` (encrypted tokens) and `profiles.json`. Inside each repository's git directory: `gitkroken/undo.json` and temporary `gitkroken/rebase/` message files.
 
@@ -258,6 +258,8 @@ In the Electron user-data folder: `hosting-accounts.json` (encrypted tokens) and
 `layout.ts` is a pure function from the commit list to rows. It walks commits newest-first keeping an array of lanes, each waiting for a hash. A commit takes the leftmost lane waiting for it (or a free one if it is a tip); other lanes waiting for it end there as "joins". Its first parent continues in the same column; further parents become "forks" into existing or new lanes. Columns never shift, so lanes are straight. A parent that is not loaded keeps its lane open to the last row. Colour is `column % 10`.
 
 `geometry.ts` turns a row into SVG path data (one path per colour). `GraphRow.tsx` draws the row: a tinted band from the node to the message column, the node (initials in a ring, a dot for merges, a dashed square for stashes, a dashed circle for WIP) and ref pills. `refLabels.ts` groups refs into pills (a local branch and its in-sync remote share one). `Graph.tsx` virtualises rows and handles columns, keyboard and paging. `actions.ts` holds every context menu.
+
+**View all files.** `details/CommitPanel.tsx` asks `listFiles` for the commit's tree (cached for the last 20 commits) and merges it with the changed files through `mergeAllFiles` in `details/fileTree.ts`. Unchanged entries are passed to `FileList` through `isUnchanged`, which draws them dimmed and without a status icon. Clicking one opens the `file` centre view, which reads the content with `fileAt` and draws it virtualised with the blame view's row classes and `highlightLines` colouring.
 
 ### 8.2 Diff viewer (`components/diff`)
 
@@ -356,7 +358,7 @@ The owner's requirement is that the app must not break branches or lose work wit
 
 ### 10.1 Automated tests
 
-`npm test`: 29 files, 604 tests, all passing at the time of writing. Tests run in plain Node; nothing launches Electron or touches the network.
+`npm test`: 29 files, 609 tests, all passing at the time of writing. Tests run in plain Node; nothing launches Electron or touches the network.
 
 | Area | Files | What they do |
 |---|---|---|
@@ -415,7 +417,7 @@ Render it from `sidebar/Sidebar.tsx` after the existing ones, using `Section` fr
 
 ### Change colours, sizes or fonts
 
-Edit the variables at the top of `src/renderer/src/theme.css` (`--bg-*`, `--text*`, `--accent`, `--lane-0..9`, `--row-h`, `--toolbar-h`). Diff colours are in `diff/DiffView.css`; syntax colours come from the shiki theme named in `diff/highlight.ts`.
+Edit the variables at the top of `src/renderer/src/theme.css` (`--bg-*`, `--bg-toolbar`, `--text*`, `--accent`, `--lane-0..9`, `--row-h`, `--toolbar-h`). The greys follow GitKraken's dark theme and lean slightly blue; the toolbar and the active tab share `--bg-toolbar`, lighter than the black tab bar. The right-panel header is neutral with the branch as a lane-0 pill; the active option of a segmented control (Path/Tree, Hunk/Inline/Split) is navy (`--bg-selected`); the stage and commit buttons are dark green with a green border. Branch pills mix their lane colour at 30% (72% for the current branch). Also keep `backgroundColor` in `src/main/index.ts` equal to `--bg-1` (it is what shows before the page paints). Diff colours are in `diff/DiffView.css`; syntax colours come from the shiki theme named in `diff/highlight.ts`.
 
 ### Change wording or add a language
 
@@ -446,6 +448,7 @@ Not set up. Add `electron-builder` or `electron-forge`. Two things to watch: the
 - Hunk actions exist only in Hunk view, and not for non-UTF-8 files.
 - Avatars are initials; no images are loaded.
 - LFS patterns in nested `.gitattributes` files are not listed.
+- "View all files" lists at most 200,000 paths, and the file-at-commit view refuses binary files and files over 8 MiB. Both are read only: nothing in them writes to the repository. The colours were matched to GitKraken by eye from screenshots, not measured.
 
 **Robustness**
 - `store.run` drops an action issued while another is running, and `busy` is shared by all tabs.

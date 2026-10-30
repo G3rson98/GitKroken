@@ -1,12 +1,13 @@
 // Commit mode of the right panel: metadata of the selected commit and the
 // list of files it changed.
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { Archive, Cloud, Copy, FolderTree, GitBranch, List, Tag } from 'lucide-react'
 import type { Commit, CommitDetails, FileChange, Ref } from '@shared/types'
 import { useStore } from '../../store'
 import { git } from '../../lib/git'
 import { showContextMenu, toast } from '../ui/overlays'
 import { FILE_VIEWS, FILE_VIEW_KEY, FileList, type FileViewMode } from './FileList'
+import { mergeAllFiles } from './fileTree'
 import { Segmented, copyText, plural, readPref, writePref } from './common'
 import { hueOf, initials, relativeTime } from './commitMessage'
 import { openBlame, openFileHistory } from '../history/entry'
@@ -24,6 +25,11 @@ function remember(key: string, details: CommitDetails): void {
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string)
 }
 
+// The tree of a commit never changes either; trees can be big, so fewer are kept
+const treeCache = new Map<string, string[]>()
+const TREE_CACHE_MAX = 20
+const ALL_FILES_KEY = 'gitkroken.allFiles'
+
 const dateFmt = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' })
 
 const REF_ICON = { head: GitBranch, remote: Cloud, tag: Tag, stash: Archive } as const
@@ -38,6 +44,7 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
   const known = useStore((s) => s.commits.find((c) => c.hash === hash))
   const refs = useStore((s) => s.refs)
   const selectedFile = useStore((s) => s.selectedFile)
+  const centerView = useStore((s) => s.view)
   const key = cacheKey(repo, hash)
   const [state, setState] = useState<State>(() => ({ key, details: cache.get(key) ?? null, error: null }))
   const [view, setViewState] = useState<FileViewMode>(() => readPref(FILE_VIEW_KEY, FILE_VIEWS, 'path'))
@@ -45,6 +52,36 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
     setViewState(v)
     writePref(FILE_VIEW_KEY, v)
   }
+  const [allFiles, setAllFilesState] = useState(() => readPref(ALL_FILES_KEY, ['on', 'off'], 'off') === 'on')
+  const setAllFiles = (on: boolean) => {
+    setAllFilesState(on)
+    writePref(ALL_FILES_KEY, on ? 'on' : 'off')
+  }
+  const [tree, setTree] = useState<{ key: string; paths: string[] | null; error: string | null } | null>(null)
+
+  useEffect(() => {
+    if (!allFiles) return
+    const hit = treeCache.get(key)
+    if (hit) {
+      setTree({ key, paths: hit, error: null })
+      return
+    }
+    let cancelled = false
+    git.listFiles(repo, hash).then(
+      (paths) => {
+        treeCache.delete(key)
+        treeCache.set(key, paths)
+        if (treeCache.size > TREE_CACHE_MAX) treeCache.delete(treeCache.keys().next().value as string)
+        if (!cancelled) setTree({ key, paths, error: null })
+      },
+      (e) => {
+        if (!cancelled) setTree({ key, paths: null, error: errText(e) })
+      }
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [allFiles, key, repo, hash])
 
   useEffect(() => {
     const hit = cache.get(key)
@@ -69,12 +106,28 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
   // `state` may still belong to the previous selection during the first render
   const current = state.key === key ? state : { key, details: cache.get(key) ?? null, error: null }
   const commit: Commit | undefined = current.details?.commit ?? known
-  const files = current.details?.files ?? null
-  const { select, selectFile } = useStore.getState()
+  const changed = current.details?.files ?? null
+  const treeNow = allFiles && tree?.key === key ? tree : null
+  const merged = useMemo(
+    () => (changed && treeNow?.paths ? mergeAllFiles(changed, treeNow.paths) : null),
+    [changed, treeNow?.paths]
+  )
+  const files = allFiles ? (merged?.files ?? null) : changed
+  const isUnchanged = (f: FileChange) => merged?.unchanged.has(f.path) ?? false
+  const loadError = current.error ?? (allFiles ? (treeNow?.error ?? null) : null)
+  const { select, selectFile, openView } = useStore.getState()
+  const viewFile = (path: string) => openView({ kind: 'file', path, rev: hash })
+  const open = (f: FileChange) =>
+    isUnchanged(f) ? viewFile(f.path) : selectFile({ path: f.path, oldPath: f.oldPath, commit: hash })
 
   const menu = (e: MouseEvent, file: FileChange) =>
     showContextMenu(e, [
-      { label: 'View changes', onClick: () => selectFile({ path: file.path, oldPath: file.oldPath, commit: hash }) },
+      {
+        label: 'View changes',
+        disabled: isUnchanged(file),
+        onClick: () => selectFile({ path: file.path, oldPath: file.oldPath, commit: hash })
+      },
+      { label: 'View file at this commit', disabled: file.status === 'deleted', onClick: () => viewFile(file.path) },
       { label: 'File History', onClick: () => openFileHistory({ path: file.path, commit: hash, status: file.status }) },
       { label: 'Blame', onClick: () => openBlame({ path: file.path, commit: hash, status: file.status }) },
       { separator: true },
@@ -107,9 +160,22 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
 
       <div className="rp-files-head">
         <span className="rp-section-title">
-          {files ? plural(files.length, 'file changed', 'files changed') : 'Files changed'}
+          {allFiles && merged && changed ? (
+            <>
+              {plural(merged.files.length, 'file', 'files')}
+              <span className="rp-section-count"> · {changed.length} changed</span>
+            </>
+          ) : changed ? (
+            plural(changed.length, 'file changed', 'files changed')
+          ) : (
+            'Files changed'
+          )}
         </span>
         <span className="rp-spring" />
+        <label className="rp-allfiles" title="List every file of the project as it is in this commit, not only the changed ones">
+          <input type="checkbox" checked={allFiles} onChange={(e) => setAllFiles(e.target.checked)} />
+          View all files
+        </label>
         <Segmented
           value={view}
           onChange={setView}
@@ -120,18 +186,22 @@ export function CommitPanel({ repo, hash }: { repo: string; hash: string }) {
         />
       </div>
       <div className="rp-files">
-        {current.error ? (
-          <div className="rp-error">Could not load the details: {current.error}</div>
+        {loadError ? (
+          <div className="rp-error">Could not load the details: {loadError}</div>
         ) : !files ? (
           <div className="rp-loading">Loading files…</div>
         ) : (
           <FileList
-            key={key}
+            key={key + (allFiles ? '\0all' : '')}
             files={files}
             view={view}
-            emptyText="This commit does not change any file"
-            isSelected={(f) => selectedFile?.commit === hash && selectedFile.path === f.path}
-            onOpen={(f) => selectFile({ path: f.path, oldPath: f.oldPath, commit: hash })}
+            emptyText={allFiles ? 'This commit has no files' : 'This commit does not change any file'}
+            isUnchanged={allFiles ? isUnchanged : undefined}
+            isSelected={(f) =>
+              (selectedFile?.commit === hash && selectedFile.path === f.path) ||
+              (centerView.kind === 'file' && centerView.rev === hash && centerView.path === f.path)
+            }
+            onOpen={open}
             onContextMenu={menu}
           />
         )}

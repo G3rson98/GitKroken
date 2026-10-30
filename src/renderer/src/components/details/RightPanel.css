@@ -7,9 +7,13 @@
 /* ---- shared header strip ---- */
 .rp-head {
   flex: none; display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 8px 0 12px;
-  background: #1a3d7c; color: #fff;
+  background: var(--bg-2); color: var(--text); border-bottom: 1px solid var(--border);
 }
-.rp-head .rp-head-label, .rp-head .rp-branch { color: #cfe0ff; }
+/* the branch as a label, like the graph's current-branch pill */
+.rp-head .rp-branch {
+  display: inline-block; padding: 1px 6px; border-radius: 2px; color: #fff;
+  background: color-mix(in srgb, var(--lane-0) 72%, #000);
+}
 .rp-head-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .rp-head-label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .rp-branch { color: var(--accent); }
@@ -115,6 +119,13 @@
 .fl-name:only-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .fl-row.selected .fl-name { color: #fff; }
 .fl-folder .fl-name { color: var(--text-dim); }
+/* "View all files": files the commit did not touch */
+.fl-row.unchanged .fl-name { color: var(--text-dim); }
+.fl-row.unchanged .fl-dir { color: var(--text-faint); }
+.fl-row.unchanged.selected .fl-name { color: #fff; }
+.rp-allfiles { display: inline-flex; align-items: center; gap: 5px; color: var(--text-dim); font-size: 11.5px; cursor: pointer; white-space: nowrap; user-select: none; }
+.rp-allfiles input { margin: 0; accent-color: var(--blue); }
+.rp-allfiles:hover { color: var(--text); }
 .fl-count { flex: none; color: var(--text-faint); font-size: 11px; }
 .fl-actions { flex: none; display: none; align-items: center; gap: 4px; }
 .fl-row:hover .fl-actions { display: inline-flex; }
@@ -141,4 +152,7 @@
 .cf textarea { width: 100%; min-height: 72px; max-height: 240px; resize: vertical; line-height: 1.45; }
 .cf-hint { color: var(--text-faint); font-size: 11px; line-height: 1.35; }
 .cf-submit { width: 100%; padding: 8px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* GitKraken's commit button: dark green with a green border */
+.cf-submit:not(:disabled) { background: rgba(63, 185, 80, .2); border-color: var(--green); color: #eafbec; font-weight: 600; }
+.cf-submit:not(:disabled):hover { background: rgba(63, 185, 80, .34); }
 .cf-submit:disabled { background: var(--bg-3); border-color: var(--border-soft); color: var(--text-dim); opacity: .8; font-weight: 400; }

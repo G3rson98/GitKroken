@@ -107,6 +107,7 @@ Click a row to see its details on the right. Right-click a row, or a label, for 
 ### Right panel
 
 - With a **commit** selected: its message, author, date and the list of files it changed. Click a file to see what changed.
+  - Tick **View all files** to list every file of the project as it was in that commit, not only the changed ones. Changed files keep their coloured icon; the others are shown dimmed. Click a dimmed file to read it as it was at that commit (read only, with code colouring); from there **Blame** and **File History** are one click away. The choice is remembered.
 - With **// WIP** selected (or nothing selected and work pending): the staging area and the commit form (section 4).
 
 ## 4. Everyday tasks
@@ -234,6 +235,7 @@ A banner warns you when some of the commits are already on the server: changing 
 | **Search** | Cmd+F (Ctrl+F), or the magnifier in the graph header | Commits whose message, author or identifier contains your text. Enter jumps to the next match. |
 | **File History** | Right-click a file, or the clock icon above a diff | Every commit that changed that file, following renames, with the change each one made. |
 | **Blame** | Right-click a file, or the icon above a diff | The file with, beside each line, who last changed it and when. Click a block for the commit; **Blame before this commit** goes further back. |
+| **File at a commit** | Select a commit, tick **View all files** and click any file; or right-click a file → **View file at this commit** | The complete file exactly as it was in that commit, even if the commit did not change it. Read only. Binary files and files over 8 MB are not shown. |
 
 ![Blame](images/blame.png)
 

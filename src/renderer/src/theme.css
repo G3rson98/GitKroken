@@ -1,15 +1,17 @@
 :root {
-  --bg-0: #0b0b0b; /* deepest: tab bar, gutters */
-  --bg-1: #101010; /* app background, graph */
-  --bg-2: #1b1b1b; /* panels */
-  --bg-3: #242424; /* raised: toolbar, headers, inputs */
-  --bg-hover: #2e2e2e;
+  /* GitKraken's dark theme greys lean slightly blue */
+  --bg-0: #0e0f11; /* deepest: tab bar, gutters */
+  --bg-1: #131417; /* app background, graph */
+  --bg-2: #1d1f23; /* panels */
+  --bg-3: #26282d; /* raised: headers, inputs */
+  --bg-toolbar: #232529; /* toolbar and the active tab joined to it */
+  --bg-hover: #30333a;
   --bg-selected: #1b2b55;
-  --border: #000;
-  --border-soft: #383838;
-  --text: #e6e6e6;
-  --text-dim: #9c9c9c;
-  --text-faint: #666;
+  --border: #060607;
+  --border-soft: #3a3d44;
+  --text: #e8e9eb;
+  --text-dim: #9b9ea5;
+  --text-faint: #676a72;
   --accent: #19b5c8; /* teal */
   --blue: #6ea8ff;
   --accent-hover: #24cbe0;

@@ -188,6 +188,8 @@ export interface GitApi {
   fileHistory(repo: string, path: string, opts?: { limit?: number; skip?: number }): Promise<FileHistoryEntry[]>
   /** File content at a revision; null when the file does not exist there */
   fileAt(repo: string, path: string, rev: string): Promise<string | null>
+  /** Every file (blob, symlink or submodule) in the tree of `rev`, sorted by path */
+  listFiles(repo: string, rev: string): Promise<string[]>
   /** Hashes (newest first) of commits in all refs matching `query` by message, author or SHA prefix */
   searchCommits(repo: string, query: string, opts?: { limit?: number }): Promise<string[]>
 

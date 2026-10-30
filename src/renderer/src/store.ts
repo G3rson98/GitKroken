@@ -33,6 +33,8 @@ export type CenterView =
   | { kind: 'rebase'; base: string }
   | { kind: 'blame'; path: string; rev?: string }
   | { kind: 'fileHistory'; path: string }
+  /** A file as it is in commit `rev` (read only, whether the commit changed it or not) */
+  | { kind: 'file'; path: string; rev: string }
 
 interface AppState {
   tabs: RepoTab[]

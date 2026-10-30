@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildCommitMessage, hueOf, initials, messageToFields, relativeTime } from './commitMessage'
-import { buildTree, flattenTree, type TreeNode } from './fileTree'
+import { buildTree, flattenTree, mergeAllFiles, type TreeNode } from './fileTree'
+import { splitLines } from '../history/FileView'
 
 const f = (path: string) => ({ path })
 const outline = (nodes: TreeNode<{ path: string }>[], collapsed = new Set<string>()) =>
@@ -60,6 +61,30 @@ describe('buildTree', () => {
   it('handles untracked directories and an empty list', () => {
     expect(buildTree([])).toEqual([])
     expect(outline(buildTree([f('a/newdir/'), f('a/x.txt')]))).toEqual(['a/', '  newdir/', '  x.txt'])
+  })
+})
+
+describe('mergeAllFiles', () => {
+  it('keeps the changed files with their status and adds the rest of the tree as unchanged', () => {
+    const changed = [
+      { path: 'src/b.ts', status: 'modified' as const },
+      { path: 'gone.txt', status: 'deleted' as const },
+      { path: 'new.ts', oldPath: 'old.ts', status: 'renamed' as const }
+    ]
+    const { files, unchanged } = mergeAllFiles(changed, ['a.txt', 'new.ts', 'src/b.ts', 'src/c.ts'])
+    expect(files.map((f) => f.path)).toEqual(['a.txt', 'gone.txt', 'new.ts', 'src/b.ts', 'src/c.ts'])
+    expect([...unchanged].sort()).toEqual(['a.txt', 'src/c.ts'])
+    expect(files.find((f) => f.path === 'new.ts')).toEqual(changed[2])
+    expect(files.find((f) => f.path === 'gone.txt')?.status).toBe('deleted')
+  })
+})
+
+describe('splitLines', () => {
+  it('splits on LF and CRLF without a phantom last line', () => {
+    expect(splitLines('')).toEqual([])
+    expect(splitLines('a\r\nb\n')).toEqual(['a', 'b'])
+    expect(splitLines('a\n\nb')).toEqual(['a', '', 'b'])
+    expect(splitLines('\n')).toEqual([''])
   })
 })
 

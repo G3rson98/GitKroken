@@ -20,7 +20,7 @@
 }
 .gd-seg-btn + .gd-seg-btn { border-left: 1px solid var(--border-soft); }
 .gd-seg-btn:hover { color: var(--text); background: var(--bg-hover); }
-.gd-seg-btn.active { color: #06262b; background: var(--accent); font-weight: 600; }
+.gd-seg-btn.active { color: #fff; background: var(--bg-selected); box-shadow: inset 0 0 0 1px #3f5d9e; }
 
 .gd-icon-btn {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
@@ -37,7 +37,7 @@
 }
 .gd-mini-btn:hover:not(:disabled) { background: var(--bg-hover); }
 .gd-mini-btn:disabled { opacity: .45; cursor: default; }
-.gd-mini-btn.green { color: var(--green); border-color: rgba(63, 185, 80, .5); }
+.gd-mini-btn.green { color: #e3f6e6; background: rgba(63, 185, 80, .16); border-color: rgba(63, 185, 80, .75); }
 .gd-mini-btn.green:hover:not(:disabled) { background: var(--green); border-color: var(--green); color: #06210c; }
 .gd-mini-btn.red { color: var(--red); border-color: rgba(229, 83, 75, .5); }
 .gd-mini-btn.red:hover:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }

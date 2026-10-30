@@ -1,4 +1,5 @@
 // Folder tree for the "Tree" view of the file lists. Pure module.
+import type { FileChange } from '@shared/types'
 
 export interface TreeFile<T> {
   kind: 'file'
@@ -76,4 +77,18 @@ export function flattenTree<T>(nodes: TreeNode<T>[], collapsed: ReadonlySet<stri
     if (node.kind === 'folder' && !collapsed.has(node.path)) out.push(...flattenTree(node.children, collapsed, depth + 1))
   }
   return out
+}
+
+/** Changed files plus, unless they are among them, every other file of the commit's tree, sorted by path */
+export function mergeAllFiles(changed: FileChange[], tree: string[]): { files: FileChange[]; unchanged: Set<string> } {
+  const touched = new Set(changed.map((f) => f.path))
+  const unchanged = new Set<string>()
+  const files = [...changed]
+  for (const path of tree) {
+    if (touched.has(path)) continue
+    unchanged.add(path)
+    files.push({ path, status: 'modified' })
+  }
+  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+  return { files, unchanged }
 }

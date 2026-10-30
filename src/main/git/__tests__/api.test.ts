@@ -28,7 +28,7 @@ const METHODS = {
   cancel: 1, answerCredential: 1,
   conflictFile: 1, resolveConflict: 1, resolveWith: 1,
   rebaseTodo: 1, rebaseInteractive: 1, undoState: 1, undo: 1, redo: 1,
-  blame: 1, fileHistory: 1, fileAt: 1, searchCommits: 1,
+  blame: 1, fileHistory: 1, fileAt: 1, listFiles: 1, searchCommits: 1,
   submodules: 1, submoduleUpdate: 1, submoduleAdd: 1, worktrees: 1, worktreeAdd: 1, worktreeRemove: 1,
   lfsInfo: 1, lfsInstall: 1, lfsTrack: 1, lfsUntrack: 1, lfsPull: 1,
   accounts: 1, addAccount: 1, removeAccount: 1, hostedRepo: 1, pullRequests: 1, createPullRequest: 1,

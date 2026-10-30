@@ -12,6 +12,7 @@ import { ConflictEditor } from './components/conflict/ConflictEditor'
 import { InteractiveRebase } from './components/rebase/InteractiveRebase'
 import { BlameView } from './components/history/BlameView'
 import { FileHistoryView } from './components/history/FileHistoryView'
+import { FileView } from './components/history/FileView'
 
 function useResizable(key: string, initial: number, min: number, max: number, side: 'left' | 'right') {
   const [width, setWidth] = useState(() => Number(localStorage.getItem(key)) || initial)
@@ -66,6 +67,8 @@ export default function App() {
                 <BlameView />
               ) : view.kind === 'fileHistory' ? (
                 <FileHistoryView />
+              ) : view.kind === 'file' ? (
+                <FileView />
               ) : selectedFile ? (
                 <DiffView />
               ) : (

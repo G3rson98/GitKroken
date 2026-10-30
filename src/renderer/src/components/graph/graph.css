@@ -135,7 +135,7 @@
 
 /* tinted band from the node to the message column */
 .g-band { fill: var(--c); opacity: 0.2; }
-.g-row.is-wip .g-band { opacity: 0.36; }
+.g-row.is-wip .g-band { opacity: 0.5; }
 .g-row.selected .g-band { opacity: 0.8; }
 
 .g-node {
@@ -177,7 +177,7 @@
   padding: 0 6px;
   border-radius: 2px;
   border: 1px solid transparent;
-  background: color-mix(in srgb, var(--c) 42%, #0a0a0a);
+  background: color-mix(in srgb, var(--c) 30%, #0a0a0a);
   color: #fff;
   font-size: 12px;
   line-height: 1;
@@ -187,7 +187,7 @@
 .g-pill > * { pointer-events: none; flex: none; }
 .g-pill > svg { opacity: 0.9; }
 .g-pill .g-pill-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px 0; }
-.g-pill:hover { background: color-mix(in srgb, var(--c) 58%, #0a0a0a); }
+.g-pill:hover { background: color-mix(in srgb, var(--c) 46%, #0a0a0a); }
 .g-pill.current {
   background: color-mix(in srgb, var(--c) 72%, #000);
   color: #fff;
