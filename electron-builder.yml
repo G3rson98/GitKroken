@@ -1,0 +1,25 @@
+# Packaging for `npm run dist` (electron-builder). Output goes to dist/.
+appId: com.g3rson98.gitkroken
+productName: GitKroken
+copyright: Copyright © 2026 Gerson Oliva
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+asar: true
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+    - target: zip
+  # No Apple Developer ID: "-" signs ad hoc, which Apple Silicon needs to run the app at all
+  identity: "-"
+  # the hardened runtime only matters for notarisation, which needs a paid Developer ID
+  hardenedRuntime: false
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Development

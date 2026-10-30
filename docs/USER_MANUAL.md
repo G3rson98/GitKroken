@@ -39,7 +39,9 @@ It does not replace Git. It runs the Git program already installed on your compu
 
 ## 2. Starting the app
 
-There is no installer yet. A developer starts it from the project folder:
+**Installed app (macOS).** Open `GitKroken-…-arm64.dmg` and drag **GitKroken** into **Applications**, then start it like any other app. If macOS says it cannot verify the developer, open **System Settings → Privacy & Security** and click **Open Anyway**; this happens once. The installer is made by a developer with `npm run dist:mac` (see the README).
+
+**From the source code.** A developer can also start it from the project folder:
 
 ```bash
 npm install
@@ -336,7 +338,7 @@ and restored with `git reset --keep <the identifier shown>`.
 
 Not available:
 
-- An installer or automatic updates.
+- Automatic updates, and an installer signed by a known developer (the macOS app is signed ad hoc, so the first launch must be allowed by hand).
 - Pull request reviews, comments and approvals (only listing and creating).
 - Undo for discards, branch deletion and stash actions.
 - Interactive rebase of ranges that contain merge commits, or starting at the very first commit.
@@ -364,7 +366,7 @@ Changes that need a developer but are small:
 | Wording of buttons and messages | Easy, but spread over many files. |
 | A new item in a right-click menu | Easy. |
 | A new Git operation | Moderate. |
-| Another language, a settings screen, an installer | Larger projects. |
+| Another language, a settings screen, automatic updates | Larger projects. |
 
 The [Technical Manual](TECHNICAL_MANUAL.md) has step-by-step instructions for each.
 

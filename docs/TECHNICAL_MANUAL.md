@@ -30,7 +30,7 @@ For developers who maintain or extend GitKroken. It covers how the app is built,
 | Size | About 31,000 lines of TypeScript; 29 test files, 609 tests. |
 | Language | English only (UI, messages, docs). |
 | Platforms | Built and tested on macOS (Apple Silicon, git 2.39, Node 20.11). Windows and Linux code paths exist but are untested. |
-| Packaging | None. It runs from source with `npm run dev` or `npm start`. |
+| Packaging | electron-builder: `npm run dist:mac` makes an ad-hoc signed `.app`, `.dmg` and `.zip` (arm64) in `dist/`. Windows and Linux targets are configured but untried. No auto-update. |
 | Maturity | New. A data-loss review found 7 high and 8 medium problems; all high ones and most medium ones are fixed and covered by regression tests (section 9). Several features have never run against real services (section 12). |
 
 ## 2. Requirements and commands
@@ -47,8 +47,9 @@ For developers who maintain or extend GitKroken. It covers how the app is built,
 | `npm start` | Run the built app (`electron-vite preview`). |
 | `npm test` | Run all tests once (vitest, plain Node, about 30 s). |
 | `npm run typecheck` | `tsc --noEmit` over the whole project. |
+| `npm run dist:mac` | Build, then package with electron-builder into `dist/` (`dist:win`, `dist:linux`, or `dist` for the current platform). |
 
-There is no lint configuration and no installer build.
+There is no lint configuration.
 
 **Electron version.** The project is pinned to Electron 39.x because the currently supported lines (42 and later) require Node 22.12+ to install. The project originally used 31.7.7, which macOS's malware protection blocked and removed on launch even though the download matched the official checksum; see section 14.
 
@@ -429,7 +430,12 @@ Install Node 22.12 or newer, then `npm install -D electron@latest` and `npm run 
 
 ### Package the app
 
-Not set up. Add `electron-builder` or `electron-forge`. Two things to watch: the askpass helper runs the app binary with `ELECTRON_RUN_AS_NODE=1`, which stops working if the `runAsNode` fuse is disabled; and distribution on macOS needs a Developer ID signature and notarisation.
+`npm run dist:mac` runs `electron-vite build` and then electron-builder with `electron-builder.yml`. Only `out/**` and `package.json` go into the `app.asar`; every library is bundled by Vite, which is why they are all `devDependencies` (anything placed in `dependencies` would be copied into the app as well).
+
+- **Signing.** `mac.identity: "-"` signs ad hoc: no Apple account needed, and Apple Silicon refuses to run code with no signature at all. `hardenedRuntime: false` because the hardened runtime only matters for notarisation and, with an ad-hoc signature, would need the `disable-library-validation` entitlement. On other Macs Gatekeeper blocks the first launch until the user allows it in Privacy & Security. For real distribution: a Developer ID certificate, `identity` set to it, the hardened runtime back on, and notarisation.
+- **Askpass.** The helper runs the app binary with `ELECTRON_RUN_AS_NODE=1`; it is written to a temporary folder, so it works from inside the asar. Never disable the `runAsNode` fuse (`electronFuses`), or credential prompts stop working. Checked on the packaged app: `ELECTRON_RUN_AS_NODE=1 GitKroken.app/Contents/MacOS/GitKroken -e …` runs.
+- **Icon.** None is set, so the default Electron icon is used. Put `icon.icns` (macOS), `icon.ico` (Windows) and `icon.png` (Linux) in `build/`.
+- **Architecture.** Builds for the machine's architecture (arm64 here). `--universal` or `--x64` make Intel builds.
 
 ### Rules of the house
 
@@ -441,7 +447,7 @@ Not set up. Add `electron-builder` or `electron-forge`. Two things to watch: the
 ## 12. Known risks and limitations
 
 **Functional gaps**
-- No installer, auto-update, settings screen or translations.
+- No auto-update, Developer ID signature, notarisation, app icon, settings screen or translations. Windows and Linux packages have never been built.
 - Pull requests and issues can be listed and created, not reviewed or commented on.
 - Interactive rebase cannot handle merge commits in the range or start at the root commit.
 - Undo does not cover branch creation/deletion, stash operations or discards.
@@ -477,7 +483,7 @@ Ordered roughly by value for effort.
 3. Carry diffs and patches as bytes so hunk staging works for any encoding.
 4. Make `busy` per repository and queue actions instead of dropping them.
 5. Verify hosting against real GitHub and GitLab accounts, then add PR review, comments and CI status.
-6. Packaging, code signing and auto-update; move to a supported Electron line.
+6. An app icon, Developer ID signing with notarisation, and auto-update; move to a supported Electron line.
 7. A settings screen (theme, font size, default diff view, pull behaviour) and a translation layer.
 8. Remove the duplicated helpers; add ESLint.
 9. A real dialog queue in `overlays.tsx` and an event to withdraw stale credential requests.

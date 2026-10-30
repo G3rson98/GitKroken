@@ -9,14 +9,11 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "lucide-react": "^0.441.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "shiki": "^4.5.0",
-    "zustand": "^4.5.5"
+    "test": "vitest run",
+    "dist": "electron-vite build && electron-builder",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
@@ -24,9 +21,16 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "electron": "^39.8.10",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^2.3.0",
+    "lucide-react": "^0.441.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "shiki": "^4.5.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.3",
-    "vitest": "^2.0.5"
-  }
+    "vitest": "^2.0.5",
+    "zustand": "^4.5.5"
+  },
+  "author": "Gerson Oliva"
 }

@@ -44,8 +44,23 @@ npm run dev
 | `npm start` | Run the built app |
 | `npm test` | Run the test suite (vitest) |
 | `npm run typecheck` | Type-check the whole project |
+| `npm run dist:mac` | Build the macOS app, a `.dmg` installer and a `.zip` in `dist/` (also `dist:win`, `dist:linux`) |
 
-There is no installer yet; the app runs from source.
+## Building an installable app
+
+```bash
+npm run dist:mac
+```
+
+This creates, in `dist/`:
+
+- `GitKroken-<version>-arm64.dmg`: open it and drag **GitKroken** into **Applications**.
+- `GitKroken-<version>-arm64-mac.zip`: the same app, zipped.
+- `mac-arm64/GitKroken.app`: the app itself, ready to run.
+
+The app is signed *ad hoc* (free, no Apple Developer account), so macOS does not know who made it. On a Mac that did not build it, the first launch is blocked: open **System Settings → Privacy & Security** and click **Open Anyway** (or right-click the app → **Open**). Distributing it without that step needs a paid Apple Developer ID and notarisation.
+
+Windows (`npm run dist:win`, NSIS installer) and Linux (`npm run dist:linux`, AppImage) targets are configured but have not been tried.
 
 ## Documentation
 
