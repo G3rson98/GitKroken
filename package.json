@@ -2,7 +2,7 @@
   "name": "gitkroken",
   "productName": "GitKroken",
   "version": "0.1.0",
-  "description": "Cliente Git visual de escritorio con grafo de commits",
+  "description": "Desktop Git client with a commit graph",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
